@@ -1,9 +1,11 @@
+pub mod tag_view;
+
 use std::fmt::{Display, Write};
 
 use cursive::{view::Position, Vec2, View};
 
 pub fn build_list_tag<'a>(
-    count: usize,
+    count: u64,
     namespace: impl Iterator<Item = &'a str> + Clone,
     tags: impl Iterator<Item = &'a str> + Clone,
     bra: bool,
@@ -32,7 +34,7 @@ pub fn build_list_tag<'a>(
 }
 
 /// Format a number to at most 4 chars
-struct SimplifyNumber(usize);
+struct SimplifyNumber(u64);
 
 impl Display for SimplifyNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

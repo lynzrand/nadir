@@ -11,6 +11,11 @@ nadir-types = { path = "crates/nadir-types" }
 cursive = { version = "0.16", default-features = false, features = ["crossterm-backend"] }
 tokio = { version = "1", features = ["full"] }
 chrono = "0.4"
+crossbeam = "0.8"
+
+unicode-segmentation = "1"
+unicode-width = "0.1"
+unicode-truncate = "0.2"
 
 [workspace]
 members = [".", "crates/*"]
