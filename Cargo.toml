@@ -12,6 +12,8 @@ cursive = { version = "0.16", default-features = false, features = ["crossterm-b
 tokio = { version = "1", features = ["full"] }
 chrono = "0.4"
 crossbeam = "0.8"
+arcstr = "1"
+lru = "0.6"
 
 unicode-segmentation = "1"
 unicode-width = "0.1"

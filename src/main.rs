@@ -1,4 +1,6 @@
 mod eventloop;
+mod model;
+mod util;
 mod view;
 
 use chrono::{DateTime, Local};
@@ -102,28 +104,40 @@ fn init_palette() -> Palette {
 }
 
 fn build_body() -> impl View {
-    // let tag = build_list_tag(
-    //     255,
-    //     vec!["foo", "bar", "baz"].into_iter(),
-    //     vec!["qux"].into_iter(),
-    //     false,
-    //     true,
-    // );
-    // views::TextView::new(tag)
-    view::tag_view::TagView {
-        multiline: false,
-        counter: 1,
-        counter_style: Style::default(),
-        tags: vec!["西点子 DD 群".into(), "Rynco Maekawa".into()],
-        bracket: BracketConfig {
-            left: view::tag_view::BracketStyle::Square,
-            right: view::tag_view::BracketStyle::Angle,
-        },
-        content: "喵喵喵".into(),
-        timestamp: DateTime::parse_from_rfc3339("2021-05-15T18:03:02+08:00")
-            .unwrap()
-            .with_timezone(&Local),
-        size: Vec2::new(0, 0),
-        dirty: true,
-    }
+    let mut view = views::ListView::new();
+    view.add_child(
+        "1",
+        view::tag_view::TagView::new(
+            false,
+            1,
+            Style::default(),
+            vec!["西点子 DD 群".into(), "Rynco Maekawa".into()],
+            BracketConfig {
+                left: view::tag_view::BracketStyle::Square,
+                right: view::tag_view::BracketStyle::Angle,
+            },
+            "喵喵喵".into(),
+            DateTime::parse_from_rfc3339("2021-05-15T18:03:02+08:00")
+                .unwrap()
+                .with_timezone(&Local),
+        ),
+    );
+    view.add_child(
+        "2",
+        view::tag_view::TagView::new(
+            false,
+            1,
+            Style::default(),
+            vec!["西点子 DD 群111".into(), "Mad0ka".into()],
+            BracketConfig {
+                left: view::tag_view::BracketStyle::Square,
+                right: view::tag_view::BracketStyle::Angle,
+            },
+            "喵喵喵，喵喵喵念念念念念".into(),
+            DateTime::parse_from_rfc3339("2021-05-15T18:02:02+08:00")
+                .unwrap()
+                .with_timezone(&Local),
+        ),
+    );
+    view
 }

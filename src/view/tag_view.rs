@@ -1,6 +1,7 @@
 use chrono::{DateTime, Datelike, Duration, Local};
 use cursive::{
-    theme::{ColorStyle, Style},
+    event::EventResult,
+    theme::{ColorStyle, Effect, Style},
     utils::{
         markup::StyledString,
         span::{SpannedStr, SpannedString, SpannedText},
@@ -79,11 +80,33 @@ pub struct TagView {
     pub timestamp: DateTime<Local>,
 
     // ----
-    pub size: Vec2,
-    pub dirty: bool,
+    size: Vec2,
+    dirty: bool,
 }
 
 impl TagView {
+    pub fn new(
+        multiline: bool,
+        counter: u64,
+        counter_style: Style,
+        tags: Vec<StyledString>,
+        bracket: BracketConfig,
+        content: StyledString,
+        timestamp: DateTime<Local>,
+    ) -> Self {
+        Self {
+            multiline,
+            counter,
+            counter_style,
+            tags,
+            bracket,
+            content,
+            timestamp,
+            size: Vec2::zero(),
+            dirty: true,
+        }
+    }
+
     fn print_counter(&self) -> bool {
         self.counter > 1
     }
@@ -101,7 +124,13 @@ impl TagView {
         cur.map_x(|x| x + width)
     }
 
-    fn do_print_tags(&self, start: Vec2, max_size: usize, printer: &cursive::Printer) -> Vec2 {
+    fn do_print_tags(
+        &self,
+        start: Vec2,
+        max_size: usize,
+        printer: &cursive::Printer,
+        secondary_style: ColorStyle,
+    ) -> Vec2 {
         // early return when there's nothing to print
         if self.tags.is_empty() {
             return start;
@@ -115,23 +144,9 @@ impl TagView {
 
         if total_size_with_sep > max_size {
             const MIN_LEN_TAGS: usize = 4;
-            let max_print_idx = {
-                // check if we have space to print every tag
-                let mut cur_len = 0;
-                let mut max_idx = self.tags.len();
-                for (idx, size) in widths.iter().copied().enumerate() {
-                    cur_len += std::cmp::min(size, MIN_LEN_TAGS) + 1;
-                    if cur_len > max_size {
-                        max_idx = idx;
-                        break;
-                    }
-                }
-                max_idx
-            };
 
             // The text is too long, we need to truncate some tags.
             // We try to truncate all tags below a certain length.
-
             {
                 let mut sizes_sorted = widths.clone();
                 sizes_sorted.sort_unstable_by(|a, b| a.cmp(b).reverse());
@@ -160,19 +175,27 @@ impl TagView {
 
         let mut cur = start;
         let mut first = true;
+
+        // print the tags
         for (s, width) in self.tags.iter().zip(widths) {
             if first {
                 first = false;
             } else {
-                printer.with_style(ColorStyle::secondary(), |p| p.print(cur, "|"));
+                printer.with_style(secondary_style, |p| p.print(cur, "|"));
                 cur.x += 1;
             }
+
             let width = if truncate.map(|x| x < width).unwrap_or_default() {
                 let (_, width) = s.source().unicode_truncate(truncate.unwrap());
                 width
             } else {
                 width
             };
+
+            if cur.x + width > max_size {
+                break;
+            }
+
             let printer = printer.windowed(Rect::from_size(cur, (width, 1)));
             printer.print_styled((0, 0), s.into());
             cur.x += width;
@@ -183,6 +206,10 @@ impl TagView {
     fn do_print_content(&self, start: Vec2, printer: &cursive::Printer, width: usize) -> Vec2 {
         let printer = printer.windowed(Rect::from_size(start, (width, 1)));
         printer.print_styled((0, 0), (&self.content).into());
+        let content_width = self.content.width();
+        if width > content_width {
+            printer.print_hline((content_width, 0), width - content_width, " ");
+        }
         start.map_x(|x| x + width)
     }
 
@@ -230,36 +257,47 @@ impl View for TagView {
             self.bracket.right
         };
 
-        if self.print_counter() || self.print_tags() {
-            printer.with_color(ColorStyle::secondary(), |p| {
-                p.print(cur_print, bra.left_str());
-                cur_print.x += 1;
-            });
+        let (secondary_style, base_effect) = if printer.focused {
+            (ColorStyle::default(), Effect::Reverse)
+        } else {
+            (ColorStyle::secondary(), Effect::Simple)
+        };
 
-            if self.print_counter() {
-                cur_print = self.do_print_counter(cur_print, printer, self.counter_style);
+        printer.with_effect(base_effect, |printer| {
+            if self.print_counter() || self.print_tags() {
+                printer.with_color(secondary_style, |p| {
+                    p.print(cur_print, bra.left_str());
+                    cur_print.x += 1;
+                });
 
-                if self.print_tags() {
-                    printer.with_color(ColorStyle::secondary(), |p| {
-                        p.print(cur_print, "|");
-                        cur_print.x += 1;
-                    });
+                if self.print_counter() {
+                    cur_print = self.do_print_counter(cur_print, printer, self.counter_style);
+
+                    if self.print_tags() {
+                        printer.with_color(secondary_style, |p| {
+                            p.print(cur_print, "|");
+                            cur_print.x += 1;
+                        });
+                    }
                 }
-            }
-            if self.print_tags() {
-                cur_print = self.do_print_tags(cur_print, tag_size, printer);
+                if self.print_tags() {
+                    cur_print = self.do_print_tags(cur_print, tag_size, printer, secondary_style);
+                }
+
+                printer.with_color(secondary_style, |p| {
+                    p.print(cur_print, ket.right_str());
+                    cur_print.x += 1;
+                });
             }
 
-            printer.with_color(ColorStyle::secondary(), |p| {
-                p.print(cur_print, ket.right_str());
-                cur_print.x += 1;
-            });
-        }
+            printer.print(cur_print, " ");
+            cur_print.x += 1;
+
+            cur_print =
+                self.do_print_content(cur_print, printer, self.size.x - cur_print.x - time_size);
+        });
         cur_print.x += 1;
-        cur_print = self.do_print_content(cur_print, printer, self.size.x - cur_print.x - 6);
-        cur_print.x += 1;
-        cur_print = self.do_print_time(cur_print, printer);
-        // todo!()
+        self.do_print_time(cur_print, printer);
     }
 
     fn layout(&mut self, size: Vec2) {
@@ -279,5 +317,9 @@ impl View for TagView {
         } else {
             Vec2::new(constraint.x, 1)
         }
+    }
+
+    fn take_focus(&mut self, _source: cursive::direction::Direction) -> bool {
+        true
     }
 }
