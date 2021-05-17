@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cursive::View;
+use cursive::{Vec2, View};
 
 use crate::{model::MessageGroup, util::DirtyCheckRwLock};
 
@@ -9,6 +9,7 @@ pub struct GroupView {
     pub group: Arc<DirtyCheckRwLock<MessageGroup>>,
 
     folded: bool,
+    last_size: Vec2
 }
 
 impl GroupView {
@@ -30,5 +31,9 @@ impl GroupView {
 impl View for GroupView {
     fn draw(&self, printer: &cursive::Printer) {
         todo!()
+    }
+
+    fn needs_relayout(&self) -> bool {
+        self.is_dirty()
     }
 }

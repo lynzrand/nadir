@@ -80,8 +80,15 @@ pub struct TagView {
     pub timestamp: DateTime<Local>,
 
     // ----
-    size: Vec2,
+    layout: TagViewLayout,
     dirty: bool,
+}
+
+#[derive(Default)]
+struct TagViewLayout {
+    pub size: Vec2,
+    pub widths: Vec<usize>,
+    pub truncate_tags: Option<usize>,
 }
 
 impl TagView {
@@ -102,7 +109,7 @@ impl TagView {
             bracket,
             content,
             timestamp,
-            size: Vec2::zero(),
+            layout: TagViewLayout::default(),
             dirty: true,
         }
     }
@@ -115,32 +122,17 @@ impl TagView {
         !self.tags.is_empty()
     }
 
-    /// Print the counter part
-    fn do_print_counter(&self, start: Vec2, printer: &cursive::Printer, style: Style) -> Vec2 {
-        let cur = start;
-        let counter = format!("{}", SimplifyNumber(self.counter));
-        let width = counter.width();
-        printer.with_style(style, |p| p.print(cur, &counter));
-        cur.map_x(|x| x + width)
-    }
-
-    fn do_print_tags(
-        &self,
-        start: Vec2,
-        max_size: usize,
-        printer: &cursive::Printer,
-        secondary_style: ColorStyle,
-    ) -> Vec2 {
-        // early return when there's nothing to print
-        if self.tags.is_empty() {
-            return start;
-        }
-
-        // Do layout and truncate tags when they are too long
-        let widths = self.tags.iter().map(|x| x.width()).collect::<Vec<_>>();
+    /// Do layout and truncate tags when they are too long
+    fn calc_truncation(&mut self, size: Vec2) {
+        self.layout.widths.clear();
+        self.layout
+            .widths
+            .extend(self.tags.iter().map(|x| x.width()));
+        let widths = &self.layout.widths;
         let total_size = widths.iter().copied().sum::<usize>();
         let total_size_with_sep = total_size + self.tags.len() - 1;
         let mut truncate = None;
+        let max_size = self.layout.size.x / 2;
 
         if total_size_with_sep > max_size {
             const MIN_LEN_TAGS: usize = 4;
@@ -172,12 +164,37 @@ impl TagView {
                 truncate = Some(std::cmp::max(truncate_to, MIN_LEN_TAGS));
             }
         }
+        self.layout.truncate_tags = truncate;
+    }
+
+    /// Print the counter part
+    fn do_print_counter(&self, start: Vec2, printer: &cursive::Printer, style: Style) -> Vec2 {
+        let cur = start;
+        let counter = format!("{}", SimplifyNumber(self.counter));
+        let width = counter.width();
+        printer.with_style(style, |p| p.print(cur, &counter));
+        cur.map_x(|x| x + width)
+    }
+
+    fn do_print_tags(
+        &self,
+        start: Vec2,
+        max_size: usize,
+        printer: &cursive::Printer,
+        secondary_style: ColorStyle,
+    ) -> Vec2 {
+        // early return when there's nothing to print
+        if self.tags.is_empty() {
+            return start;
+        }
+        let truncate = self.layout.truncate_tags;
+        let widths = &self.layout.widths;
 
         let mut cur = start;
         let mut first = true;
 
         // print the tags
-        for (s, width) in self.tags.iter().zip(widths) {
+        for (s, &width) in self.tags.iter().zip(widths) {
             if first {
                 first = false;
             } else {
@@ -237,12 +254,12 @@ impl TagView {
         });
         start.map_x(|x| x + 5)
     }
+    const TIME_SECTION_SIZE: usize = 6;
 }
 
 impl View for TagView {
     fn draw(&self, printer: &cursive::Printer) {
-        let tag_size = self.size.x / 2;
-        let time_size = 6;
+        let tag_size = self.layout.size.x / 2;
         let mut cur_print = Vec2::new(0, 0);
 
         let bra = if self.print_counter() {
@@ -293,18 +310,22 @@ impl View for TagView {
             printer.print(cur_print, " ");
             cur_print.x += 1;
 
-            cur_print =
-                self.do_print_content(cur_print, printer, self.size.x - cur_print.x - time_size);
+            cur_print = self.do_print_content(
+                cur_print,
+                printer,
+                self.layout.size.x - cur_print.x - Self::TIME_SECTION_SIZE,
+            );
         });
         cur_print.x += 1;
         self.do_print_time(cur_print, printer);
     }
 
     fn layout(&mut self, size: Vec2) {
-        if size != self.size {
+        if size != self.layout.size {
             self.dirty = true;
         }
-        self.size = size;
+        self.layout.size = size;
+        self.calc_truncation(size);
     }
 
     fn needs_relayout(&self) -> bool {

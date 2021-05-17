@@ -1,6 +1,7 @@
+use parking_lot::RwLock;
 use std::{
     ops::{Deref, DerefMut},
-    sync::{atomic::AtomicBool, RwLock},
+    sync::atomic::AtomicBool,
 };
 
 /// A reader-writer lock with dirty state check. The dirty state will be set whenever
@@ -41,12 +42,7 @@ impl<T> DirtyCheckRwLock<T> {
             .store(dirty, std::sync::atomic::Ordering::Release);
     }
 
-    pub fn write(
-        &self,
-    ) -> Result<
-        std::sync::RwLockWriteGuard<T>,
-        std::sync::PoisonError<std::sync::RwLockWriteGuard<T>>,
-    > {
+    pub fn write(&self) -> parking_lot::lock_api::RwLockWriteGuard<parking_lot::RawRwLock, T> {
         let res = self.lock.write();
         self.set_dirty(true);
         res
@@ -54,12 +50,9 @@ impl<T> DirtyCheckRwLock<T> {
 
     pub fn try_write(
         &self,
-    ) -> Result<
-        std::sync::RwLockWriteGuard<T>,
-        std::sync::TryLockError<std::sync::RwLockWriteGuard<T>>,
-    > {
+    ) -> Option<parking_lot::lock_api::RwLockWriteGuard<parking_lot::RawRwLock, T>> {
         let res = self.lock.try_write();
-        if res.is_ok() {
+        if res.is_some() {
             self.set_dirty(true);
         }
         res
