@@ -3,7 +3,7 @@ pub mod tagged_group;
 
 use std::fmt::{Display, Write};
 
-use cursive::{view::Position, Vec2, View};
+
 
 pub fn build_list_tag<'a>(
     count: u64,

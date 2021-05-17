@@ -29,7 +29,7 @@ impl GroupView {
 }
 
 impl View for GroupView {
-    fn draw(&self, printer: &cursive::Printer) {
+    fn draw(&self, _printer: &cursive::Printer) {
         todo!()
     }
 

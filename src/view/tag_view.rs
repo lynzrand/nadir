@@ -2,10 +2,7 @@ use chrono::{DateTime, Datelike, Duration, Local};
 use cursive::{
     event::EventResult,
     theme::{ColorStyle, Effect, Style},
-    utils::{
-        markup::StyledString,
-        span::{SpannedStr, SpannedString, SpannedText},
-    },
+    utils::{markup::StyledString, span::SpannedText},
     Rect, Vec2, View,
 };
 use unicode_truncate::UnicodeTruncateStr;
@@ -123,7 +120,7 @@ impl TagView {
     }
 
     /// Do layout and truncate tags when they are too long
-    fn calc_truncation(&mut self, size: Vec2) {
+    fn calc_truncation(&mut self, _size: Vec2) {
         self.layout.widths.clear();
         self.layout
             .widths
@@ -342,5 +339,19 @@ impl View for TagView {
 
     fn take_focus(&mut self, _source: cursive::direction::Direction) -> bool {
         true
+    }
+
+    fn on_event(&mut self, ev: cursive::event::Event) -> EventResult {
+        match ev {
+            cursive::event::Event::Mouse {
+                offset: _,
+                position: _,
+                event: _,
+            } => {
+                //
+                EventResult::Consumed(None)
+            }
+            _ => EventResult::Ignored,
+        }
     }
 }

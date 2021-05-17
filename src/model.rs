@@ -3,7 +3,6 @@
 
 use std::num::NonZeroUsize;
 
-use arcstr::ArcStr;
 use clru::CLruCache;
 use nadir_types::model;
 use smol_str::SmolStr;
