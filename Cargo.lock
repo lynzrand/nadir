@@ -12,12 +12,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arcstr"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "514f4b246c9aa8f35393407c55f20df89cae359831c136cd4e61c97cd1dd5dfa"
-
-[[package]]
 name = "array-macro"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -176,6 +170,20 @@ dependencies = [
  "libc",
  "log",
  "signal-hook 0.3.8",
+ "unicode-segmentation",
+ "unicode-width",
+ "wasmer_enumset",
+]
+
+[[package]]
+name = "cursive_buffered_backend"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ff406fcf5a4dd60b55c619704833346dec67af7f2545e4ad96f26777d8bdbcf"
+dependencies = [
+ "cursive_core",
+ "log",
+ "smallvec",
  "unicode-segmentation",
  "unicode-width",
  "wasmer_enumset",
@@ -371,11 +379,11 @@ dependencies = [
 name = "nadir-notify"
 version = "0.1.0"
 dependencies = [
- "arcstr",
  "chrono",
  "clru",
  "crossbeam",
  "cursive",
+ "cursive_buffered_backend",
  "nadir-types",
  "parking_lot",
  "smol_str",

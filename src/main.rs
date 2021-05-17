@@ -7,11 +7,11 @@ use chrono::{DateTime, Local};
 use cursive::{
     theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*, Style},
     utils::span::SpannedString,
-    view::{Margins, Selector},
+    view::{Margins, Selector, SizeConstraint},
     views::{self, TextView},
     Cursive, Vec2, View,
 };
-use view::build_list_tag;
+
 
 use crate::view::tag_view::BracketConfig;
 
@@ -30,7 +30,12 @@ async fn main() {
 
     tokio::spawn(time_update_loop(handle));
 
-    tokio::task::block_in_place(|| siv.run());
+    let crossterm_backend = cursive::backends::crossterm::Backend::init().unwrap();
+    let buffered_backend = Box::new(cursive_buffered_backend::BufferedBackend::new(
+        crossterm_backend,
+    ));
+
+    tokio::task::block_in_place(|| siv.run_with(|| buffered_backend));
 }
 
 async fn time_update_loop(
@@ -67,8 +72,9 @@ fn init_stat() -> impl cursive::View {
     let bar = views::TextView::new("|").style(ColorStyle::front(Light(Black)));
     let time_view = views::NamedView::new("time", views::TextView::new(time));
 
-    views::ResizedView::with_fixed_height(
-        1,
+    views::ResizedView::new(
+        SizeConstraint::AtLeast(1),
+        SizeConstraint::Fixed(1),
         views::LinearLayout::horizontal()
             .child(stat_view)
             .child(views::PaddedView::new(Margins::lr(1, 1), bar))
