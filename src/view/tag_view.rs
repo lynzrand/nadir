@@ -1,8 +1,9 @@
 use chrono::{DateTime, Datelike, Duration, Local};
 use cursive::{
-    event::EventResult,
+    event::{Callback, EventResult},
     theme::{ColorStyle, Effect, Style},
-    utils::{markup::StyledString, span::SpannedText},
+    utils::markup::StyledString,
+    views::{self, ResizedView},
     Rect, Vec2, View,
 };
 use unicode_truncate::UnicodeTruncateStr;
@@ -343,13 +344,17 @@ impl View for TagView {
 
     fn on_event(&mut self, ev: cursive::event::Event) -> EventResult {
         match ev {
-            cursive::event::Event::Mouse {
-                offset: _,
-                position: _,
-                event: _,
-            } => {
+            cursive::event::Event::Mouse { .. }
+            | cursive::event::Event::Key(cursive::event::Key::Enter) => {
                 //
-                EventResult::Consumed(None)
+                EventResult::Consumed(Some(Callback::from_fn_once(|c| {
+                    c.add_fullscreen_layer(views::Layer::with_color(
+                        ResizedView::with_full_screen(views::Button::new("foo", |c| {
+                            c.pop_layer();
+                        })),
+                        ColorStyle::back(cursive::theme::Color::TerminalDefault),
+                    ));
+                })))
             }
             _ => EventResult::Ignored,
         }
