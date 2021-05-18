@@ -1,38 +1,8 @@
+pub mod indexed_view;
 pub mod tag_view;
 pub mod tagged_group;
 
 use std::fmt::{Display, Write};
-
-
-
-pub fn build_list_tag<'a>(
-    count: u64,
-    namespace: impl Iterator<Item = &'a str> + Clone,
-    tags: impl Iterator<Item = &'a str> + Clone,
-    bra: bool,
-    ket: bool,
-) -> String {
-    let mut s = String::new();
-
-    // format count section: "[NNN" or "|" or "<"
-    if count > 1 {
-        s.write_fmt(format_args!("[{}", SimplifyNumber(count)))
-            .unwrap();
-    } else if bra {
-        s.push('[');
-    } else {
-        s.push('|');
-    }
-
-    // format namespace and tags section
-    s.write_fmt(format_args!(
-        "{}",
-        Separated('|', '|', if ket { '>' } else { ']' }, namespace.chain(tags))
-    ))
-    .unwrap();
-
-    s
-}
 
 /// Format a number to at most 4 chars
 struct SimplifyNumber(u64);

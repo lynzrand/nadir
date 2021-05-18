@@ -341,22 +341,4 @@ impl View for TagView {
     fn take_focus(&mut self, _source: cursive::direction::Direction) -> bool {
         true
     }
-
-    fn on_event(&mut self, ev: cursive::event::Event) -> EventResult {
-        match ev {
-            cursive::event::Event::Mouse { .. }
-            | cursive::event::Event::Key(cursive::event::Key::Enter) => {
-                //
-                EventResult::Consumed(Some(Callback::from_fn_once(|c| {
-                    c.add_fullscreen_layer(views::Layer::with_color(
-                        ResizedView::with_full_screen(views::Button::new("foo", |c| {
-                            c.pop_layer();
-                        })),
-                        ColorStyle::back(cursive::theme::Color::TerminalDefault),
-                    ));
-                })))
-            }
-            _ => EventResult::Ignored,
-        }
-    }
 }

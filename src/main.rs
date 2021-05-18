@@ -5,7 +5,7 @@ mod view;
 
 use chrono::{DateTime, Local};
 use cursive::{
-    event::Key,
+    event::{EventResult, EventTrigger, Key},
     theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*, Style},
     utils::span::SpannedString,
     view::{Margins, Selector, SizeConstraint},
@@ -110,34 +110,40 @@ fn init_palette() -> Palette {
 }
 
 fn build_body() -> impl View {
-    let mut view = views::LinearLayout::vertical();
-    view.add_child(view::tag_view::TagView::new(
-        false,
-        1,
-        Style::default(),
-        vec!["西点子 DD 群".into(), "Rynco Maekawa".into()],
-        BracketConfig {
-            left: view::tag_view::BracketStyle::Square,
-            right: view::tag_view::BracketStyle::Angle,
-        },
-        "喵喵喵".into(),
-        DateTime::parse_from_rfc3339("2021-05-15T18:03:02+08:00")
-            .unwrap()
-            .with_timezone(&Local),
-    ));
-    view.add_child(view::tag_view::TagView::new(
-        false,
-        1,
-        Style::default(),
-        vec!["西点子 DD 群111".into(), "Mad0ka".into()],
-        BracketConfig {
-            left: view::tag_view::BracketStyle::Square,
-            right: view::tag_view::BracketStyle::Angle,
-        },
-        "喵喵喵，喵喵喵念念念念念".into(),
-        DateTime::parse_from_rfc3339("2021-05-15T18:02:02+08:00")
-            .unwrap()
-            .with_timezone(&Local),
-    ));
+    let mut view = views::ListView::new();
+    view.add_child(
+        "foo",
+        view::tag_view::TagView::new(
+            false,
+            1,
+            Style::default(),
+            vec!["西点子 DD 群".into(), "Rynco Maekawa".into()],
+            BracketConfig {
+                left: view::tag_view::BracketStyle::Square,
+                right: view::tag_view::BracketStyle::Angle,
+            },
+            "喵喵喵".into(),
+            DateTime::parse_from_rfc3339("2021-05-15T18:03:02+08:00")
+                .unwrap()
+                .with_timezone(&Local),
+        ),
+    );
+    view.add_child(
+        "bar",
+        view::tag_view::TagView::new(
+            false,
+            1,
+            Style::default(),
+            vec!["西点子 DD 群111".into(), "Mad0ka".into()],
+            BracketConfig {
+                left: view::tag_view::BracketStyle::Square,
+                right: view::tag_view::BracketStyle::Angle,
+            },
+            "喵喵喵，喵喵喵念念念念念".into(),
+            DateTime::parse_from_rfc3339("2021-05-15T18:02:02+08:00")
+                .unwrap()
+                .with_timezone(&Local),
+        ),
+    );
     view
 }

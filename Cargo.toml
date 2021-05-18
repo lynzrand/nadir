@@ -18,6 +18,8 @@ parking_lot = "0.11"
 smol_str = { version = "0.1", features = ["serde"] }
 clru = "0.4"
 chrono = "0.4"
+slotmap = "1"
+bimap = "0.6.1"
 
 # UI stuff
 cursive = { version = "0.16", default-features = false, features = ["crossterm-backend"] }
