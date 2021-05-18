@@ -1,28 +1,28 @@
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use std::{
     ops::{Deref, DerefMut},
     sync::atomic::AtomicBool,
 };
 
 /// A reader-writer lock with dirty state check. The dirty state will be set whenever
-/// the lock is write-locked, and cleared manually.
-pub struct DirtyCheckRwLock<T> {
+/// the lock is write-locked, and is cleared manually or at reads.
+pub struct DirtyCheckLock<T> {
     lock: RwLock<T>,
     dirty: AtomicBool,
 }
 
-impl<T> DirtyCheckRwLock<T> {
+impl<T> DirtyCheckLock<T> {
     /// Create a new instance with the given value. Sets `dirty` to `true` when created.
-    pub fn new(t: T) -> DirtyCheckRwLock<T> {
-        DirtyCheckRwLock {
+    pub fn new(t: T) -> DirtyCheckLock<T> {
+        DirtyCheckLock {
             lock: RwLock::new(t),
             dirty: AtomicBool::new(true),
         }
     }
 
     /// Create a new instance from the given lock. Sets `dirty` to `true` when created.
-    pub fn from_lock(lock: RwLock<T>) -> DirtyCheckRwLock<T> {
-        DirtyCheckRwLock {
+    pub fn from_lock(lock: RwLock<T>) -> DirtyCheckLock<T> {
+        DirtyCheckLock {
             lock,
             dirty: AtomicBool::new(true),
         }
@@ -42,33 +42,23 @@ impl<T> DirtyCheckRwLock<T> {
             .store(dirty, std::sync::atomic::Ordering::Release);
     }
 
+    /// Access the inner contents without setting the dirty flag. The content
+    /// is readonly in this case.
+    pub fn read(
+        &self,
+        clear_dirty: bool,
+    ) -> parking_lot::lock_api::RwLockReadGuard<parking_lot::RawRwLock, T> {
+        let lock = self.lock.read();
+        if clear_dirty {
+            self.clear_dirty()
+        }
+        lock
+    }
+
+    /// Access the inner contents, and set the dirty flag to true.
     pub fn write(&self) -> parking_lot::lock_api::RwLockWriteGuard<parking_lot::RawRwLock, T> {
         let res = self.lock.write();
         self.set_dirty(true);
         res
-    }
-
-    pub fn try_write(
-        &self,
-    ) -> Option<parking_lot::lock_api::RwLockWriteGuard<parking_lot::RawRwLock, T>> {
-        let res = self.lock.try_write();
-        if res.is_some() {
-            self.set_dirty(true);
-        }
-        res
-    }
-}
-
-impl<T> Deref for DirtyCheckRwLock<T> {
-    type Target = RwLock<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.lock
-    }
-}
-
-impl<T> DerefMut for DirtyCheckRwLock<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.lock
     }
 }

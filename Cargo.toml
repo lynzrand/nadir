@@ -16,7 +16,7 @@ parking_lot = "0.11"
 
 # containers
 smol_str = { version = "0.1", features = ["serde"] }
-clru = "0.4"
+hashlink = "0.7"
 chrono = "0.4"
 slotmap = "1"
 bimap = "0.6.1"

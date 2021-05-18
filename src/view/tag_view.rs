@@ -6,6 +6,8 @@ use cursive::{
     views::{self, ResizedView},
     Rect, Vec2, View,
 };
+use nadir_types::{message, model::Message};
+use smol_str::SmolStr;
 use unicode_truncate::UnicodeTruncateStr;
 use unicode_width::*;
 
@@ -69,13 +71,14 @@ pub struct BracketConfig {
 }
 
 pub struct TagView {
+    pub id: SmolStr,
     pub multiline: bool,
     pub counter: u64,
     pub counter_style: Style,
     pub tags: Vec<StyledString>,
     pub bracket: BracketConfig,
     pub content: StyledString,
-    pub timestamp: DateTime<Local>,
+    pub timestamp: Option<DateTime<Local>>,
 
     // ----
     layout: TagViewLayout,
@@ -91,15 +94,17 @@ struct TagViewLayout {
 
 impl TagView {
     pub fn new(
+        id: SmolStr,
         multiline: bool,
         counter: u64,
         counter_style: Style,
         tags: Vec<StyledString>,
         bracket: BracketConfig,
         content: StyledString,
-        timestamp: DateTime<Local>,
+        timestamp: Option<DateTime<Local>>,
     ) -> Self {
         Self {
+            id,
             multiline,
             counter,
             counter_style,
@@ -230,24 +235,22 @@ impl TagView {
 
     fn do_print_time(&self, start: Vec2, printer: &cursive::Printer) -> Vec2 {
         let now = chrono::Local::now();
-        let duration = now - self.timestamp;
+        let timestamp = self.timestamp.unwrap();
+        let duration = now - timestamp;
         printer.with_style(ColorStyle::secondary(), |p| {
             if duration < Duration::zero() {
                 p.print(start, "now");
             } else if duration < Duration::days(1) {
-                p.print(start, &self.timestamp.format("%H:%M").to_string());
+                p.print(start, &timestamp.format("%H:%M").to_string());
             } else if duration < Duration::days(32) {
                 p.print(start, &format!("{}d", duration.num_days()));
             } else if duration < Duration::days(366) {
                 p.print(
                     start,
-                    &format!(
-                        "{}d",
-                        (now.month0() - self.timestamp.month0() + 12) % 12 + 1
-                    ),
+                    &format!("{}d", (now.month0() - timestamp.month0() + 12) % 12 + 1),
                 );
             } else {
-                p.print(start, &format!("{}y", now.year() - self.timestamp.year()));
+                p.print(start, &format!("{}y", now.year() - timestamp.year()));
             }
         });
         start.map_x(|x| x + 5)
@@ -257,8 +260,15 @@ impl TagView {
 
 impl View for TagView {
     fn draw(&self, printer: &cursive::Printer) {
-        let tag_size = self.layout.size.x / 2;
         let mut cur_print = Vec2::new(0, 0);
+
+        let size = self.layout.size;
+        let time_size = if self.timestamp.is_some() {
+            Self::TIME_SECTION_SIZE
+        } else {
+            0
+        };
+        let tag_max_size = (size.x.saturating_sub(time_size)) / 2;
 
         let bra = if self.print_counter() {
             BracketStyle::Square
@@ -296,7 +306,8 @@ impl View for TagView {
                     }
                 }
                 if self.print_tags() {
-                    cur_print = self.do_print_tags(cur_print, tag_size, printer, secondary_style);
+                    cur_print =
+                        self.do_print_tags(cur_print, tag_max_size, printer, secondary_style);
                 }
 
                 printer.with_color(secondary_style, |p| {
@@ -308,14 +319,12 @@ impl View for TagView {
             printer.print(cur_print, " ");
             cur_print.x += 1;
 
-            cur_print = self.do_print_content(
-                cur_print,
-                printer,
-                self.layout.size.x - cur_print.x - Self::TIME_SECTION_SIZE,
-            );
+            cur_print = self.do_print_content(cur_print, printer, size.x - cur_print.x - time_size);
         });
-        cur_print.x += 1;
-        self.do_print_time(cur_print, printer);
+        if self.timestamp.is_some() {
+            cur_print.x += 1;
+            self.do_print_time(cur_print, printer);
+        }
     }
 
     fn layout(&mut self, size: Vec2) {
@@ -340,5 +349,23 @@ impl View for TagView {
 
     fn take_focus(&mut self, _source: cursive::direction::Direction) -> bool {
         true
+    }
+}
+
+impl From<&'_ Message> for TagView {
+    fn from(msg: &'_ Message) -> Self {
+        TagView::new(
+            msg.id.clone(),
+            false,
+            msg.counter.unwrap_or(1),
+            Style::default(),
+            msg.tags.iter().map(|v| v.into()).collect(),
+            BracketConfig {
+                left: BracketStyle::Line,
+                right: BracketStyle::Angle,
+            },
+            msg.body.as_str().into(),
+            msg.time.map(|v| v.into()),
+        )
     }
 }

@@ -3,7 +3,7 @@
 
 use std::num::NonZeroUsize;
 
-use clru::CLruCache;
+use hashlink::lru_cache::LruCache;
 use nadir_types::model;
 use smol_str::SmolStr;
 use thiserror::Error;
@@ -18,21 +18,19 @@ pub struct MessageGroup {
     meta: model::MessageGroup,
     counter: u64,
 
-    pub msgs: CLruCache<SmolStr, model::Message>,
-    pub pinned_msgs: CLruCache<SmolStr, model::Message>,
+    pub msgs: LruCache<SmolStr, model::Message>,
+    pub pinned_msgs: LruCache<SmolStr, model::Message>,
 }
 
 impl MessageGroup {
     /// Create a new message group with the given capacity and pinned capacity.
-    pub fn new(meta: model::MessageGroup) -> Result<MessageGroup, ZeroCapacityError> {
-        let cap = make_nonzero_usize(meta.capacity)?;
-        let cap_pinned = make_nonzero_usize(meta.pinned_capacity)?;
-        Ok(MessageGroup {
-            meta,
+    pub fn new(meta: model::MessageGroup) -> MessageGroup {
+        MessageGroup {
             counter: 0,
-            msgs: CLruCache::new(cap),
-            pinned_msgs: CLruCache::new(cap_pinned),
-        })
+            msgs: LruCache::new(meta.capacity),
+            pinned_msgs: LruCache::new(meta.pinned_capacity),
+            meta,
+        }
     }
 
     pub fn meta(&self) -> &model::MessageGroup {
@@ -40,8 +38,8 @@ impl MessageGroup {
     }
 
     pub fn set_meta(&mut self, meta: model::MessageGroup) -> Result<(), ZeroCapacityError> {
-        self.msgs.resize(make_nonzero_usize(meta.capacity)?);
-        self.pinned_msgs.resize(make_nonzero_usize(meta.capacity)?);
+        self.msgs.set_capacity(meta.capacity);
+        self.pinned_msgs.set_capacity(meta.pinned_capacity);
         self.meta = meta;
         Ok(())
     }
@@ -75,22 +73,39 @@ impl MessageGroup {
     }
 
     pub fn add_message(&mut self, notification: model::Message) {
-        self.msgs.put(notification.id.clone(), notification);
+        self.msgs.insert(notification.id.clone(), notification);
     }
 
     pub fn add_messages(&mut self, messages: impl Iterator<Item = model::Message>) {
         for msg in messages {
-            self.msgs.put(msg.id.clone(), msg);
+            self.msgs.insert(msg.id.clone(), msg);
+        }
+    }
+
+    pub fn add_pinned_message(&mut self, notification: model::Message) {
+        self.pinned_msgs
+            .insert(notification.id.clone(), notification);
+    }
+
+    pub fn add_pinned_messages(&mut self, messages: impl Iterator<Item = model::Message>) {
+        for msg in messages {
+            self.pinned_msgs.insert(msg.id.clone(), msg);
         }
     }
 
     pub fn remove_msg<'a>(&mut self, ids: impl Iterator<Item = &'a str>) {
         for id in ids {
-            self.msgs.pop(id);
+            self.msgs.remove(id);
+        }
+    }
+
+    pub fn remove_pinned_msg<'a>(&mut self, ids: impl Iterator<Item = &'a str>) {
+        for id in ids {
+            self.pinned_msgs.remove(id);
         }
     }
 }
 
 fn make_nonzero_usize(i: usize) -> Result<NonZeroUsize, ZeroCapacityError> {
-    Ok(NonZeroUsize::new(i).ok_or(ZeroCapacityError)?)
+    NonZeroUsize::new(i).ok_or(ZeroCapacityError)
 }
