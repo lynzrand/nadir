@@ -1,8 +1,9 @@
-mod eventloop;
 mod model;
+mod server;
 mod ui;
 mod util;
 mod view;
+mod opt;
 
 use std::sync::Arc;
 
