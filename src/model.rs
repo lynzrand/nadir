@@ -18,8 +18,8 @@ pub struct MessageGroup {
     meta: model::MessageGroup,
     counter: u64,
 
-    pub msgs: LruCache<SmolStr, model::Message>,
-    pub pinned_msgs: LruCache<SmolStr, model::Message>,
+    pub msgs: LruCache<String, model::Message>,
+    pub pinned_msgs: LruCache<String, model::Message>,
 }
 
 impl MessageGroup {
@@ -27,8 +27,8 @@ impl MessageGroup {
     pub fn new(meta: model::MessageGroup) -> MessageGroup {
         MessageGroup {
             counter: 0,
-            msgs: LruCache::new(meta.capacity),
-            pinned_msgs: LruCache::new(meta.pinned_capacity),
+            msgs: LruCache::new(meta.capacity as usize),
+            pinned_msgs: LruCache::new(meta.pinned_capacity as usize),
             meta,
         }
     }
@@ -38,8 +38,8 @@ impl MessageGroup {
     }
 
     pub fn set_meta(&mut self, meta: model::MessageGroup) -> Result<(), ZeroCapacityError> {
-        self.msgs.set_capacity(meta.capacity);
-        self.pinned_msgs.set_capacity(meta.pinned_capacity);
+        self.msgs.set_capacity(meta.capacity as usize);
+        self.pinned_msgs.set_capacity(meta.pinned_capacity as usize);
         self.meta = meta;
         Ok(())
     }
@@ -60,8 +60,8 @@ impl MessageGroup {
         self.counter
     }
 
-    pub fn id(&self) -> SmolStr {
-        self.meta.id.clone()
+    pub fn id(&self) -> &str {
+        &self.meta.id
     }
 
     pub fn cap(&self) -> usize {

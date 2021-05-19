@@ -1,9 +1,9 @@
 mod model;
+mod opt;
 mod server;
 mod ui;
 mod util;
 mod view;
-mod opt;
 
 use std::sync::Arc;
 
@@ -38,6 +38,7 @@ async fn main() {
             title: "Telegram".into(),
             capacity: 10,
             pinned_capacity: 3,
+            importance: 0,
         },
     )));
 

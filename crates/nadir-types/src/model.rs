@@ -1,25 +1,36 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use smol_str::SmolStr;
 
 /// A group of messages.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MessageGroup {
     /// A unique identifier for this group.
-    pub id: SmolStr,
+    pub id: String,
+
+    /// Importance parameter, groups with higher importance will show in the
+    /// front.
+    ///
+    /// Defaults to 0.
+    pub importance: i32,
 
     /// The title of this group.
     pub title: String,
 
     /// A message capacity hint for this group.
     ///
-    /// Message sent to this group will
-    /// be discarded in LRU order when the total amount is above this capacity.
-    /// The notify server is free to choose any number smaller than this capacity.
-    pub capacity: usize,
+    /// This message group will display at most this many messages, but
+    /// implementations may choose smaller numbers when screen space is not
+    /// enough.
+    ///
+    /// Defaults to 10.
+    pub capacity: u32,
 
-    /// A message capacity hint for pinned messages. See [`capacity`].
-    pub pinned_capacity: usize,
+    /// A message capacity hint for pinned messages. The semantics is similar to
+    /// [`capacity`].
+    ///
+    /// Defaults to 5.
+    pub pinned_capacity: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -28,7 +39,7 @@ pub struct Message {
     /// [`MessageGroup`] will replace each other upon receiving.
     ///
     /// Example: group name in instant messaging tool, email address in maildir.
-    pub id: SmolStr,
+    pub id: String,
 
     /// A counter showing how many "real" notification is currently
     /// covered by this message.
@@ -47,4 +58,16 @@ pub struct Message {
     /// The send time of this message
     #[serde(default)]
     pub time: Option<DateTime<Utc>>,
+}
+
+impl Default for MessageGroup {
+    fn default() -> Self {
+        MessageGroup {
+            id: Default::default(),
+            importance: 0,
+            title: Default::default(),
+            capacity: 10,
+            pinned_capacity: 5,
+        }
+    }
 }

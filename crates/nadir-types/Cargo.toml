@@ -9,4 +9,3 @@ edition = "2018"
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
-smol_str = { version = "0.1", features = ["serde"] }

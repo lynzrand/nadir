@@ -1,4 +1,3 @@
-pub mod indexed_view;
 pub mod tag_view;
 pub mod tagged_group;
 

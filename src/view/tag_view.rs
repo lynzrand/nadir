@@ -355,7 +355,7 @@ impl View for TagView {
 impl From<&'_ Message> for TagView {
     fn from(msg: &'_ Message) -> Self {
         TagView::new(
-            msg.id.clone(),
+            msg.id.as_str().into(),
             false,
             msg.counter.unwrap_or(1),
             Style::default(),
