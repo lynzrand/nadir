@@ -21,8 +21,7 @@ url = { version = "2", features = ["serde"] }
 # containers
 hashlink = "0.7"
 chrono = "0.4"
-slotmap = "1"
-bimap = "0.6.1"
+indexmap = "1.6"
 
 # UI stuff
 cursive = { version = "0.16", default-features = false, features = ["crossterm-backend"] }

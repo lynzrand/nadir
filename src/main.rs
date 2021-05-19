@@ -1,26 +1,22 @@
-mod model;
-mod opt;
-mod server;
-mod ui;
-mod util;
-mod view;
+pub mod model;
+pub mod opt;
+pub mod server;
+pub mod ui;
+pub mod util;
+pub mod view;
 
 use std::sync::Arc;
 
-use chrono::{DateTime, Local};
+use chrono::Local;
 use cursive::{
-    event::{EventResult, EventTrigger, Key},
-    theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*, Style},
-    utils::span::SpannedString,
+    theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*},
     view::{Margins, Selector, SizeConstraint},
     views::{self, TextView},
-    Cursive, Vec2, View,
+    Cursive, View,
 };
 use model::MessageGroup;
 use util::DirtyCheckLock;
-use view::tagged_group::{GroupRef, GroupView};
-
-use crate::view::tag_view::BracketConfig;
+use view::group_view::{GroupRef, GroupView};
 
 pub type CursiveHandle = crossbeam::channel::Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>;
 
@@ -68,7 +64,7 @@ async fn data_update_loop(handle: CursiveHandle, data: GroupRef) {
         let mut guard = data.write();
         let mut meta = guard.meta().clone();
         meta.title = "bar".into();
-        guard.set_meta(meta).unwrap();
+        guard.set_meta(meta);
         handle.send(Box::new(|_c| {})).unwrap();
     }
 
@@ -174,7 +170,7 @@ fn init_palette() -> Palette {
 }
 
 fn build_body(data: GroupRef) -> impl View {
-    let mut view = GroupView::new(data, 7, false);
+    let view = GroupView::new(data);
 
     view
 }

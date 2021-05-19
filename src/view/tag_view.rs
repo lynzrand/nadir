@@ -1,12 +1,10 @@
 use chrono::{DateTime, Datelike, Duration, Local};
 use cursive::{
-    event::{Callback, EventResult},
     theme::{ColorStyle, Effect, Style},
     utils::markup::StyledString,
-    views::{self, ResizedView},
     Rect, Vec2, View,
 };
-use nadir_types::{message, model::Message};
+use nadir_types::model::Message;
 use smol_str::SmolStr;
 use unicode_truncate::UnicodeTruncateStr;
 use unicode_width::*;
@@ -70,6 +68,7 @@ pub struct BracketConfig {
     pub right: BracketStyle,
 }
 
+/// A display for tagged messages: [`nadir-types::model::Message`].
 pub struct TagView {
     pub id: SmolStr,
     pub multiline: bool,

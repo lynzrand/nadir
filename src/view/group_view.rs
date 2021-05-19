@@ -6,7 +6,6 @@ use cursive::{
     views::{HideableView, LinearLayout, NamedView, PaddedView, TextView},
     Vec2, View,
 };
-use smol_str::SmolStr;
 
 use crate::{model::MessageGroup, util::DirtyCheckLock};
 
@@ -16,18 +15,24 @@ pub type GroupRef = Arc<DirtyCheckLock<MessageGroup>>;
 
 pub struct GroupView {
     pub group: GroupRef,
-    pub size_limit: usize,
 
     folded: bool,
+    layout: GroupViewLayout,
     view: LinearLayout,
 }
 
+#[derive(Debug, Default)]
+struct GroupViewLayout {
+    pub last_size: Vec2,
+    pub size_changed: bool,
+}
+
 impl GroupView {
-    pub fn new(group: GroupRef, size_limit: usize, folded: bool) -> Self {
+    pub fn new(group: GroupRef) -> Self {
         Self {
             group,
-            size_limit,
-            folded,
+            folded: false,
+            layout: Default::default(),
             view: LinearLayout::vertical(),
         }
     }
@@ -48,6 +53,10 @@ impl GroupView {
 
     fn is_dirty(&self) -> bool {
         self.group.is_dirty()
+    }
+
+    fn available_vertical_space(&self) -> usize {
+        self.layout.last_size.y.saturating_sub(1)
     }
 
     /// Initialize self's linear layout view
@@ -77,13 +86,17 @@ impl GroupView {
                 );
         }
         // Return if nothing has changed
-        if !self.is_dirty() {
+        if !(self.is_dirty() || self.layout.size_changed) {
             return;
         }
         // Ensure view is initialized
         if self.view.len() != 2 {
             self.init_view()
         }
+
+        // Calculate available spaces
+        let max_entry_cnt = self.available_vertical_space();
+        let max_pinned_cnt = (max_entry_cnt + 1) / 2;
 
         // Acquire read lock
         let group = self.group.read(true);
@@ -114,7 +127,7 @@ impl GroupView {
             body.remove_child(i);
         }
 
-        for (_id, pinned_item) in group.pinned_msgs.iter().rev().take(self.size_limit) {
+        for (_id, pinned_item) in group.pinned_msgs.iter().rev().take(max_pinned_cnt) {
             body.add_child(
                 LinearLayout::horizontal()
                     .child(TextView::new("P "))
@@ -123,7 +136,7 @@ impl GroupView {
         }
 
         let pinned_size = group.pinned_msgs.len();
-        let remaining_size = self.size_limit - std::cmp::min(self.size_limit, pinned_size);
+        let remaining_size = max_entry_cnt - std::cmp::min(max_entry_cnt, pinned_size);
 
         for (_id, item) in group.msgs.iter().rev().take(remaining_size) {
             body.add_child(PaddedView::lrtb(2, 0, 0, 0, TagView::from(item)));
@@ -135,12 +148,13 @@ impl ViewWrapper for GroupView {
     cursive::wrap_impl!(self.view: LinearLayout);
 
     fn wrap_needs_relayout(&self) -> bool {
-        self.is_dirty() || self.with_view(|v| v.needs_relayout()).unwrap()
+        self.is_dirty() || self.view.needs_relayout()
     }
 
     fn wrap_layout(&mut self, size: Vec2) {
+        self.layout.size_changed = size != self.layout.last_size;
+        self.layout.last_size = size;
         self.dirty_check_and_update();
-
-        self.with_view_mut(|v| v.layout(size)).unwrap();
+        self.view.layout(size);
     }
 }
