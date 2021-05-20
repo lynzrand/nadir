@@ -7,16 +7,20 @@ pub mod view;
 
 use std::sync::Arc;
 
-use chrono::Local;
+use chrono::{DateTime, Local};
 use cursive::{
+    event::Event,
     theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*},
     view::{Margins, Selector, SizeConstraint},
-    views::{self, TextView},
+    views::{self, DebugView, ResizedView, TextView},
     Cursive, View,
 };
-use model::MessageGroup;
+use model::{group_list::GroupList, MessageGroup};
 use util::DirtyCheckLock;
-use view::group_view::{GroupRef, GroupView};
+use view::{
+    group_list_view::GroupListView,
+    group_view::{GroupRef, GroupView},
+};
 
 pub type CursiveHandle = crossbeam::channel::Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>;
 
@@ -26,23 +30,19 @@ async fn main() {
     let theme = init_theme();
     siv.set_theme(theme);
     // No auto refreshing, use the handle to trigger updates
-    // siv.set_fps(1);
+    // siv.set_fps(5);
+    cursive::logger::init();
+    log::set_max_level(log::LevelFilter::Info);
 
-    let data = Arc::new(DirtyCheckLock::new(MessageGroup::new(
-        nadir_types::model::MessageGroup {
-            id: "tg".into(),
-            title: "Telegram".into(),
-            capacity: 10,
-            pinned_capacity: 3,
-            importance: 0,
-        },
-    )));
+    let data = Arc::new(DirtyCheckLock::new(GroupList::new()));
 
     siv.add_fullscreen_layer(views::Layer::new(views::ResizedView::with_full_screen(
         views::LinearLayout::vertical()
             .child(views::PaddedView::new(Margins::tb(0, 1), init_stat()))
+            // .child(ResizedView::with_max_height(6, DebugView::new()))
             .child(build_body(data.clone())),
     )));
+    siv.add_global_callback(Event::CtrlChar('d'), |c| c.toggle_debug_console());
     let handle = siv.cb_sink().clone();
 
     tokio::spawn(time_update_loop(handle.clone()));
@@ -57,47 +57,70 @@ async fn main() {
 }
 
 /// Testing function for updateing data
-async fn data_update_loop(handle: CursiveHandle, data: GroupRef) {
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    // do some test writes
+async fn data_update_loop(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>) {
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let group_name = "tg".to_string();
+    let group = Arc::new(DirtyCheckLock::new(MessageGroup::new(
+        nadir_types::model::MessageGroup {
+            id: group_name.clone(),
+            title: "Telegram".into(),
+            capacity: 30,
+            pinned_capacity: 3,
+            importance: 0,
+        },
+    )));
     {
-        let mut guard = data.write();
-        let mut meta = guard.meta().clone();
-        meta.title = "bar".into();
-        guard.set_meta(meta);
-        handle.send(Box::new(|_c| {})).unwrap();
+        data.write().add_group(group.clone());
+    }
+    handle
+        .send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)))
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    let group_name_2 = "maildir".to_string();
+    let group_2 = Arc::new(DirtyCheckLock::new(MessageGroup::new(
+        nadir_types::model::MessageGroup {
+            id: group_name_2.clone(),
+            title: "Maildir".into(),
+            capacity: 30,
+            pinned_capacity: 3,
+            importance: -4,
+        },
+    )));
+    {
+        data.write().add_group(group_2.clone());
     }
 
-    let mut rand = 123;
-    for i in 0..50 {
-        tokio::time::sleep(std::time::Duration::from_millis(rand % 2000)).await;
-        rand = rand.wrapping_add(rand << 13).wrapping_add(rand >> 17);
+    let mut i: u64 = 1;
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let mut guard = data.write();
-        guard.add_message(nadir_types::model::Message {
-            id: format!("FOO{}", rand % 7).into(),
-            counter: None,
-            tags: vec![format!("foo{}", rand % 7), "bar".into(), format!("#{}", i)],
-            body: "喵喵喵喵喵喵".into(),
-            time: Some(chrono::Utc::now()),
-        });
-        if i % 3 == rand % 3 {
-            guard.add_pinned_message(nadir_types::model::Message {
-                id: format!("BAR{}", rand % 5).into(),
+        {
+            let mut group = group.write();
+            group.add_message(nadir_types::model::Message {
+                id: format!("aaa{}", i % 24),
                 counter: None,
-                tags: vec![
-                    format!("bar{}", rand % 5),
-                    "zenith".into(),
-                    format!("al #{}", i),
-                ],
-                body: "汪汪汪汪汪汪汪".into(),
+                tags: vec![format!("foo{}", i % 24)],
+                body: format!("{}", i),
                 time: Some(chrono::Utc::now()),
             });
         }
-        handle.send(Box::new(|_c| {})).unwrap();
-    }
 
-    // handle.send().unwrap();
+        {
+            let mut group = group_2.write();
+            group.add_message(nadir_types::model::Message {
+                id: format!("aaa{}", i % 17),
+                counter: None,
+                tags: vec![format!("foo{}", i % 17)],
+                body: format!("{}", i),
+                time: Some(chrono::Utc::now()),
+            });
+            i = i.wrapping_add(i << 17).wrapping_add(i >> 13);
+        }
+        handle
+            .send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)))
+            .unwrap();
+    }
 }
 
 async fn time_update_loop(handle: CursiveHandle) -> ! {
@@ -106,7 +129,8 @@ async fn time_update_loop(handle: CursiveHandle) -> ! {
     loop {
         timer.tick().await;
         let new_time = chrono::Local::now();
-        if new_time.timestamp() / 60 != time.timestamp() / 60 {
+        // if new_time.timestamp() / 60 != time.timestamp() / 60 {
+        if new_time.timestamp() != time.timestamp() {
             time = new_time;
         } else {
             continue;
@@ -143,7 +167,7 @@ fn init_stat() -> impl cursive::View {
 }
 
 fn format_current_time(time: chrono::DateTime<Local>) -> String {
-    let time = time.format("%Y-%m-%d %H:%M");
+    let time = time.format("%Y-%m-%d %H:%M:%S");
     time.to_string()
 }
 
@@ -151,7 +175,7 @@ fn init_theme() -> cursive::theme::Theme {
     let mut theme = cursive::theme::Theme::default();
     let palette = init_palette();
 
-    theme.borders = cursive::theme::BorderStyle::None;
+    // theme.borders = cursive::theme::BorderStyle::None;
     theme.palette = palette;
 
     theme
@@ -169,10 +193,8 @@ fn init_palette() -> Palette {
     palette
 }
 
-fn build_body(data: GroupRef) -> impl View {
-    let view = GroupView::new(data);
-
-    view
+fn build_body(data: Arc<DirtyCheckLock<GroupList>>) -> impl View {
+    views::ResizedView::with_full_screen(GroupListView::new(data))
 }
 
 // view::tag_view::TagView::new(

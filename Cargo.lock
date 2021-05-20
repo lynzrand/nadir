@@ -451,6 +451,7 @@ dependencies = [
  "cursive_buffered_backend",
  "hashlink",
  "indexmap",
+ "log",
  "nadir-types",
  "parking_lot",
  "smol_str",

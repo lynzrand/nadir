@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use cursive::{
+    event::EventResult,
     traits::Finder,
     view::{Selector, ViewWrapper},
     views::{HideableView, LinearLayout, NamedView, PaddedView, TextView},
     Vec2, View,
 };
+use log::info;
 
 use crate::{model::MessageGroup, util::DirtyCheckLock};
 
@@ -21,10 +23,19 @@ pub struct GroupView {
     view: LinearLayout,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct GroupViewLayout {
     pub last_size: Vec2,
     pub size_changed: bool,
+}
+
+impl Default for GroupViewLayout {
+    fn default() -> Self {
+        GroupViewLayout {
+            last_size: Vec2::default(),
+            size_changed: true,
+        }
+    }
 }
 
 impl GroupView {
@@ -75,7 +86,7 @@ impl GroupView {
 
     /// Do dirty check and update child view. This method does heavy diff checks
     /// and should only be called on relayouts.
-    fn dirty_check_and_update(&mut self) {
+    pub fn dirty_check_and_update(&mut self) {
         // Check folded state
         {
             let folded = self.folded;
@@ -93,6 +104,7 @@ impl GroupView {
         if self.view.len() != 2 {
             self.init_view()
         }
+        debug_assert_eq!(self.view.len(), 2, "The view is left in an invalid state");
 
         // Calculate available spaces
         let max_entry_cnt = self.available_vertical_space();
@@ -100,6 +112,14 @@ impl GroupView {
 
         // Acquire read lock
         let group = self.group.read(true);
+
+        info!(
+            "group {}: dirty check: size {:?}, num_entry {}, num_pinned {}",
+            group.id(),
+            self.layout.last_size,
+            group.msgs.len(),
+            group.pinned_msgs.len()
+        );
 
         // Set group name
         let counter = group.counter();
@@ -149,6 +169,20 @@ impl ViewWrapper for GroupView {
 
     fn wrap_needs_relayout(&self) -> bool {
         self.is_dirty() || self.view.needs_relayout()
+    }
+
+    fn wrap_required_size(&mut self, req: Vec2) -> Vec2 {
+        // take up the full space offered to self
+        let grp = self.group.read(false);
+        let msg_cnt = grp.msgs.len() + grp.pinned_msgs.len();
+        (1, std::cmp::min(msg_cnt, req.y)).into()
+    }
+
+    fn wrap_on_event(&mut self, ch: cursive::event::Event) -> cursive::event::EventResult {
+        match ch {
+            cursive::event::Event::Refresh => EventResult::Consumed(None),
+            _ => EventResult::Ignored,
+        }
     }
 
     fn wrap_layout(&mut self, size: Vec2) {

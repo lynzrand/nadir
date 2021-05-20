@@ -35,5 +35,7 @@ unicode-truncate = "0.2"
 # error management
 thiserror = "1"
 
+log = "*"
+
 [workspace]
 members = [".", "crates/*"]

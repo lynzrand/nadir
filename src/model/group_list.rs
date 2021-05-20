@@ -21,7 +21,7 @@ impl GroupList {
     /// Sort all groups inside self.
     pub fn sort_self(&mut self) {
         self.map
-            .sort_by(|k1, v1, k2, v2| v1.0.cmp(&v2.0).then(k1.cmp(k2)));
+            .sort_by(|k1, v1, k2, v2| v1.0.cmp(&v2.0).reverse().then(k1.cmp(k2)));
     }
 
     /// Insert a new group into this list, and then sort the groups to retain
@@ -69,7 +69,7 @@ impl GroupList {
         self.len() == 0
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &GroupRef> {
-        self.map.iter().map(|(_, (_, v))| v)
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &GroupRef)> {
+        self.map.iter().map(|(k, (_, v))| (k.as_str(), v))
     }
 }
