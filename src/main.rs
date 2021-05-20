@@ -12,7 +12,7 @@ use cursive::{
     event::Event,
     theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*},
     view::{Margins, Selector, SizeConstraint},
-    views::{self, DebugView, ResizedView, TextView},
+    views::{self, DebugView, LinearLayout, ResizedView, TextView},
     Cursive, View,
 };
 use model::{group_list::GroupList, MessageGroup};
@@ -153,16 +153,29 @@ fn init_stat() -> impl cursive::View {
         "stat",
         views::TextView::new(stat).style(ColorStyle::front(Light(Green))),
     );
-    let bar = views::TextView::new("|").style(ColorStyle::front(Light(Black)));
+    let bar = views::PaddedView::new(
+        Margins::lr(1, 1),
+        views::TextView::new("|").style(ColorStyle::front(Light(Black))),
+    );
+
+    let bar2 = views::PaddedView::new(
+        Margins::lr(1, 1),
+        views::TextView::new("|").style(ColorStyle::front(Light(Black))),
+    );
+
     let time_view = views::NamedView::new("time", views::TextView::new(time));
+
+    let app_ver = views::TextView::new(format!("{} v{}", APP_NAME, APP_VER)).style(Secondary);
 
     views::ResizedView::new(
         SizeConstraint::AtLeast(1),
         SizeConstraint::Fixed(1),
         views::LinearLayout::horizontal()
             .child(stat_view)
-            .child(views::PaddedView::new(Margins::lr(1, 1), bar))
-            .child(time_view),
+            .child(bar)
+            .child(time_view)
+            .child(bar2)
+            .child(app_ver),
     )
 }
 
@@ -194,27 +207,55 @@ fn init_palette() -> Palette {
 }
 
 fn build_body(data: Arc<DirtyCheckLock<GroupList>>) -> impl View {
-    views::ResizedView::with_full_screen(GroupListView::new(data))
+    views::ResizedView::with_full_screen(GroupListView::new(data, Box::new(build_empty_view)))
 }
 
-// view::tag_view::TagView::new(
-//     false,
-//     1,
-//     Style::default(),
-//     vec!["西点子 DD 群111".into(), "Mad0ka".into()],
-//     BracketConfig {
-//         left: view::tag_view::BracketStyle::Square,
-//         right: view::tag_view::BracketStyle::Angle,
-//     },
-//     "喵喵喵，喵喵喵念念念念念".into(),
-//     DateTime::parse_from_rfc3339("2021-05-15T18:02:02+08:00")
-//         .unwrap()
-//         .with_timezone(&Local),
-// ),
+fn build_empty_view() -> Box<dyn View> {
+    Box::new(ResizedView::with_full_screen(
+        cursive_aligned_view::AlignedView::new(
+            views::LinearLayout::horizontal()
+                .child(views::PaddedView::lrtb(
+                    3,
+                    3,
+                    3,
+                    3,
+                    TextView::new(NADIR_LOGO),
+                ))
+                .child(views::PaddedView::lrtb(
+                    3,
+                    3,
+                    3,
+                    3,
+                    LinearLayout::vertical()
+                        .child(TextView::new(NADIR_NAME))
+                        .child(views::PaddedView::lrtb(
+                            1,
+                            0,
+                            1,
+                            0,
+                            TextView::new("Waiting for connections"),
+                        )),
+                )),
+            cursive::align::Align::center(),
+        ),
+    ))
+}
 
-pub const LOGO: &str = r"
+pub const NADIR_NAME: &str = r"
                _ _     
   _ _  __ _ __| (_)_ _ 
  | ' \/ _` / _` | | '_|
  |_||_\__,_\__,_|_|_|  
 ";
+
+pub const NADIR_LOGO: &str = r"
+\--                           ---/
+ \-----                  ----===/ 
+   \--------------------=====//   
+     -\===--------=======////-    
+        \\===========//////       
+            \\\==*/////           
+";
+
+pub const APP_NAME: &str = env!("CARGO_PKG_NAME");
+pub const APP_VER: &str = env!("CARGO_PKG_VERSION");

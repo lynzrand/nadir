@@ -18,6 +18,7 @@ const MIN_SIZE_FOR_EACH_LAYOUT: usize = 3;
 /// A view to dynamically reorder message groups
 pub struct GroupListView {
     pub data: Arc<DirtyCheckLock<GroupList>>,
+    pub if_empty: Box<dyn Fn() -> Box<dyn View>>,
 
     layout: GroupListViewLayout,
     view: ResizedView<LinearLayout>,
@@ -31,9 +32,13 @@ struct GroupListViewLayout {
 }
 
 impl GroupListView {
-    pub fn new(data: Arc<DirtyCheckLock<GroupList>>) -> Self {
+    pub fn new(
+        data: Arc<DirtyCheckLock<GroupList>>,
+        if_empty: Box<dyn Fn() -> Box<dyn View>>,
+    ) -> Self {
         GroupListView {
             data,
+            if_empty,
             layout: Default::default(),
             view: ResizedView::with_full_screen(LinearLayout::vertical()),
         }
@@ -66,17 +71,19 @@ impl GroupListView {
                 self.view.get_inner_mut().remove_child(i);
             }
 
-            for (i, (n, v)) in guard.iter().enumerate() {
-                v.set_dirty(true);
-                self.view
-                    .get_inner_mut()
-                    .add_child(GroupView::new(v.clone()).with_name(format!("v-group-{}", n)));
-                self.view.get_inner_mut().set_weight(i, 1);
+            if guard.is_empty() {
+                self.view.get_inner_mut().add_child((self.if_empty)());
+            } else {
+                for (i, (n, v)) in guard.iter().enumerate() {
+                    v.set_dirty(true);
+                    self.view
+                        .get_inner_mut()
+                        .add_child(GroupView::new(v.clone()).with_name(format!("v-group-{}", n)));
+                    self.view.get_inner_mut().set_weight(i, 1);
+                }
             }
 
             log::info!("refreshed");
-
-            self.layout.children_sizes.clear();
         }
 
         // Do layout updates?
@@ -91,20 +98,11 @@ impl ViewWrapper for GroupListView {
     }
 
     fn wrap_required_size(&mut self, req: Vec2) -> Vec2 {
+        self.dirty_check_and_layout_update();
         self.view.required_size(req)
     }
 
-    fn wrap_on_event(&mut self, ch: cursive::event::Event) -> EventResult {
-        match ch {
-            cursive::event::Event::Refresh => EventResult::Consumed(None),
-            _ => EventResult::Ignored,
-        }
-    }
-
     fn wrap_layout(&mut self, size: Vec2) {
-        self.layout.size_changed = size != self.layout.last_size;
-        self.layout.last_size = size;
-        self.dirty_check_and_layout_update();
         self.view.layout(size)
     }
 }

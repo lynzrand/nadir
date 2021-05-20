@@ -175,20 +175,15 @@ impl ViewWrapper for GroupView {
         // take up the full space offered to self
         let grp = self.group.read(false);
         let msg_cnt = grp.msgs.len() + grp.pinned_msgs.len();
-        (1, std::cmp::min(msg_cnt, req.y)).into()
-    }
-
-    fn wrap_on_event(&mut self, ch: cursive::event::Event) -> cursive::event::EventResult {
-        match ch {
-            cursive::event::Event::Refresh => EventResult::Consumed(None),
-            _ => EventResult::Ignored,
-        }
-    }
-
-    fn wrap_layout(&mut self, size: Vec2) {
+        let size = Vec2::new(1, std::cmp::min(msg_cnt + 1, req.y));
+        drop(grp);
         self.layout.size_changed = size != self.layout.last_size;
         self.layout.last_size = size;
         self.dirty_check_and_update();
+        size
+    }
+
+    fn wrap_layout(&mut self, size: Vec2) {
         self.view.layout(size);
     }
 }
