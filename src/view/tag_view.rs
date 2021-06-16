@@ -126,6 +126,10 @@ impl TagView {
 
     /// Do layout and truncate tags when they are too long
     fn calc_truncation(&mut self, _size: Vec2) {
+        if self.tags.is_empty() {
+            self.layout.truncate_tags = None;
+            return;
+        }
         self.layout.widths.clear();
         self.layout
             .widths
@@ -313,10 +317,10 @@ impl View for TagView {
                     p.print(cur_print, ket.right_str());
                     cur_print.x += 1;
                 });
-            }
 
-            printer.print(cur_print, " ");
-            cur_print.x += 1;
+                printer.print(cur_print, " ");
+                cur_print.x += 1;
+            }
 
             cur_print = self.do_print_content(cur_print, printer, size.x - cur_print.x - time_size);
         });
