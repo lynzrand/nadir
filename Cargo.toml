@@ -7,16 +7,18 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nadir-types = { path = "crates/nadir-types" }
+nadir-types = { path="crates/nadir-types" }
 
 # sync stuff
-tokio = { version = "1", features = ["full"] }
+tokio = { version="1", features=["full"] }
+tokio-tungstenite = { version="0.14", features=["rustls-tls"] }
 crossbeam = "0.8"
 parking_lot = "0.11"
+futures = "0.3"
 
 # domain specific types
-smol_str = { version = "0.1", features = ["serde"] }
-url = { version = "2", features = ["serde"] }
+smol_str = { version="0.1", features=["serde"] }
+url = { version="2", features=["serde"] }
 
 # containers
 hashlink = "0.7"
@@ -24,7 +26,7 @@ chrono = "0.4"
 indexmap = "1.6"
 
 # UI stuff
-cursive = { version = "0.16", default-features = false, features = ["crossterm-backend"] }
+cursive = { version="0.16", default-features=false, features=["crossterm-backend"] }
 cursive_buffered_backend = "0.5"
 cursive-aligned-view = "0.4"
 
@@ -37,6 +39,8 @@ unicode-truncate = "0.2"
 thiserror = "1"
 
 log = "*"
+
+serde_json = "1"
 
 [workspace]
 members = [".", "crates/*"]

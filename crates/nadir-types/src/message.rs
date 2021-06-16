@@ -16,7 +16,7 @@ pub enum ApiMessage {
 pub struct AddMsg {
     /// The group ID
     pub group: String,
-    
+
     /// The messages to add.
     ///
     /// Messages are added in reverse order, _i.e._ messages that appear later
@@ -27,8 +27,11 @@ pub struct AddMsg {
 /// Remove notifications
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoveMsg {
+    /// The group ID
+    pub group: String,
+
     /// The IDs of messages to remove
-    items: Vec<String>,
+    pub items: Vec<String>,
 }
 
 /// Add or replace a namespace in Nadir
