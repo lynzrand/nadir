@@ -1,7 +1,5 @@
-use parking_lot::{RwLock};
-use std::{
-    sync::atomic::AtomicBool,
-};
+use parking_lot::RwLock;
+use std::sync::atomic::AtomicBool;
 
 /// A reader-writer lock with dirty state check. The dirty state will be set whenever
 /// the lock is write-locked, and is cleared manually or at reads.
@@ -10,6 +8,9 @@ pub struct DirtyCheckLock<T> {
     lock: RwLock<T>,
     dirty: AtomicBool,
 }
+
+pub type ReadGuard<'r, T> = parking_lot::lock_api::RwLockReadGuard<'r, parking_lot::RawRwLock, T>;
+pub type WriteGuard<'w, T> = parking_lot::lock_api::RwLockWriteGuard<'w, parking_lot::RawRwLock, T>;
 
 impl<T> DirtyCheckLock<T> {
     /// Create a new instance with the given value. Sets `dirty` to `true` when created.
@@ -44,10 +45,7 @@ impl<T> DirtyCheckLock<T> {
 
     /// Access the inner contents without setting the dirty flag. The content
     /// is readonly in this case.
-    pub fn read(
-        &self,
-        clear_dirty: bool,
-    ) -> parking_lot::lock_api::RwLockReadGuard<parking_lot::RawRwLock, T> {
+    pub fn read(&self, clear_dirty: bool) -> ReadGuard<'_, T> {
         let lock = self.lock.read();
         if clear_dirty {
             self.clear_dirty()
@@ -56,7 +54,7 @@ impl<T> DirtyCheckLock<T> {
     }
 
     /// Access the inner contents, and set the dirty flag to true.
-    pub fn write(&self) -> parking_lot::lock_api::RwLockWriteGuard<parking_lot::RawRwLock, T> {
+    pub fn write(&self) -> WriteGuard<'_, T> {
         let res = self.lock.write();
         self.set_dirty(true);
         res
