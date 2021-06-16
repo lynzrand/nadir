@@ -20,6 +20,7 @@ impl MaildirLocalServer {
 
     fn single_serve(&self) {
         let mut group = self.group_server.data.write();
+        group.msgs.clear(); // clear stale entries
         let mut display_entries = Vec::<(i64, MailEntry)>::new();
         let maildir = Maildir::from(self.path.clone());
 
