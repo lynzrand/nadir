@@ -7,7 +7,9 @@ use cursive::{
     views::{HideableView, LinearLayout, NamedView, PaddedView, TextView},
     Vec2, View,
 };
+use indexmap::IndexSet;
 use log::info;
+use smol_str::SmolStr;
 
 use crate::{model::MessageGroup, util::DirtyCheckLock};
 
@@ -25,6 +27,8 @@ pub struct GroupView {
 
 #[derive(Debug)]
 struct GroupViewLayout {
+    pub order_buf: IndexSet<SmolStr>,
+    pub reorder: Vec<usize>,
     pub last_size: Vec2,
     pub size_changed: bool,
 }
@@ -34,6 +38,8 @@ impl Default for GroupViewLayout {
         GroupViewLayout {
             last_size: Vec2::default(),
             size_changed: true,
+            order_buf: IndexSet::new(),
+            reorder: vec![],
         }
     }
 }
@@ -113,14 +119,6 @@ impl GroupView {
         // Acquire read lock
         let group = self.group.read(true);
 
-        info!(
-            "group {}: dirty check: size {:?}, num_entry {}, num_pinned {}",
-            group.id(),
-            self.layout.last_size,
-            group.msgs.len(),
-            group.pinned_msgs.len()
-        );
-
         // Set group name
         let counter = group.counter();
         let content;
@@ -140,9 +138,23 @@ impl GroupView {
             .find_name::<LinearLayout>("msgs")
             .expect("The messages view should always be present");
 
+        let mut focus = body.get_focus_index();
+        let focused_view = body
+            .get_child(focus)
+            .and_then(|x| x.downcast_ref::<TagView>());
+        let focused_id = focused_view.map(|x| x.id.clone());
+
+        info!(
+            "Handle focus on {}: focused: {}, id {:?}",
+            group.meta().title,
+            focus,
+            focused_id
+        );
+
         //TODO: Do diff between the old body and the new message list.
         // Naive method: remove all children of that view and add more back
         let children_size = body.len();
+
         for i in (0..children_size).rev() {
             body.remove_child(i);
         }
@@ -153,6 +165,11 @@ impl GroupView {
                     .child(TextView::new("P "))
                     .child(TagView::from(pinned_item)),
             );
+            if focused_id.as_ref().map_or(false, |x| x == _id) {
+                let index = body.len() - 1;
+                focus = index;
+                info!("found focus in pinned msgs: {}", index);
+            }
         }
 
         let pinned_size = group.pinned_msgs.len();
@@ -160,7 +177,18 @@ impl GroupView {
 
         for (_id, item) in group.msgs.iter().rev().take(remaining_size) {
             body.add_child(PaddedView::lrtb(2, 0, 0, 0, TagView::from(item)));
+            if focused_id.as_ref().map_or(false, |x| x == _id) {
+                let index = body.len() - 1;
+                focus = index;
+                info!("found focus in msgs: {}", index);
+            }
         }
+
+        // ignore the error if set index failed
+        // if !focused {
+        let _ = body.set_focus_index(focus);
+        info!("setting focus: {}", focus);
+        // }
     }
 }
 
@@ -168,7 +196,7 @@ impl ViewWrapper for GroupView {
     cursive::wrap_impl!(self.view: LinearLayout);
 
     fn wrap_needs_relayout(&self) -> bool {
-        self.is_dirty() || self.view.needs_relayout()
+        self.is_dirty()
     }
 
     fn wrap_required_size(&mut self, req: Vec2) -> Vec2 {
@@ -186,4 +214,8 @@ impl ViewWrapper for GroupView {
     fn wrap_layout(&mut self, size: Vec2) {
         self.view.layout(size);
     }
+}
+
+fn do_diff_check(source: &MessageGroup, last: &mut Vec<SmolStr>, order: &mut Vec<usize>) {
+    // source.msgs
 }
