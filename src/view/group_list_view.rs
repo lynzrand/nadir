@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use cursive::{
-    event::EventResult,
     traits::Nameable,
     view::ViewWrapper,
-    views::{self, LinearLayout, ResizedView},
+    views::{LinearLayout, ResizedView},
     wrap_impl, Vec2, View,
 };
-use log::info;
+use log::debug;
 
 use crate::{model::group_list::GroupList, util::DirtyCheckLock};
 
@@ -50,7 +49,7 @@ impl GroupListView {
 
     fn dirty_check_and_layout_update(&mut self) {
         let is_dirty = self.data.is_dirty();
-        info!(
+        debug!(
             "group list: dirty check: dirty {}, size {:?}",
             is_dirty, self.layout.last_size
         );
@@ -85,8 +84,6 @@ impl GroupListView {
             }
 
             let _ = inner.set_focus_index(focus);
-
-            log::info!("refreshed");
         }
 
         // Do layout updates?
