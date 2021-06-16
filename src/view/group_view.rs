@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use cursive::{
-    event::EventResult,
     traits::Finder,
     view::{Selector, ViewWrapper},
     views::{HideableView, LinearLayout, NamedView, PaddedView, TextView},
     Vec2, View,
 };
 use indexmap::IndexSet;
-use log::info;
+use log::debug;
 use smol_str::SmolStr;
 
 use crate::{model::MessageGroup, util::DirtyCheckLock};
@@ -144,7 +143,7 @@ impl GroupView {
             .and_then(|x| x.downcast_ref::<TagView>());
         let focused_id = focused_view.map(|x| x.id.clone());
 
-        info!(
+        debug!(
             "Handle focus on {}: focused: {}, id {:?}",
             group.meta().title,
             focus,
@@ -168,7 +167,6 @@ impl GroupView {
             if focused_id.as_ref().map_or(false, |x| x == _id) {
                 let index = body.len() - 1;
                 focus = index;
-                info!("found focus in pinned msgs: {}", index);
             }
         }
 
@@ -180,14 +178,12 @@ impl GroupView {
             if focused_id.as_ref().map_or(false, |x| x == _id) {
                 let index = body.len() - 1;
                 focus = index;
-                info!("found focus in msgs: {}", index);
             }
         }
 
         // ignore the error if set index failed
         // if !focused {
         let _ = body.set_focus_index(focus);
-        info!("setting focus: {}", focus);
         // }
     }
 }
