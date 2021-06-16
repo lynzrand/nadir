@@ -13,6 +13,7 @@ nadir-types = { path = "crates/nadir-types" }
 tokio = { version = "1", features = ["full"] }
 crossbeam = "0.8"
 parking_lot = "0.11"
+async-trait = "0.1.50"
 
 # domain specific types
 smol_str = { version = "0.1", features = ["serde"] }

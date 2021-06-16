@@ -21,6 +21,7 @@ use view::{
     group_list_view::GroupListView,
     group_view::{GroupRef, GroupView},
 };
+use server::{Server, TestServer};
 
 pub type CursiveHandle = crossbeam::channel::Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>;
 
@@ -46,7 +47,8 @@ async fn main() {
     let handle = siv.cb_sink().clone();
 
     tokio::spawn(time_update_loop(handle.clone()));
-    tokio::spawn(data_update_loop(handle, data));
+    setup_servers(handle.clone(), data);
+
 
     let crossterm_backend = cursive::backends::crossterm::Backend::init().unwrap();
     let buffered_backend = Box::new(cursive_buffered_backend::BufferedBackend::new(
@@ -56,32 +58,28 @@ async fn main() {
     tokio::task::block_in_place(|| siv.run_with(|| buffered_backend));
 }
 
-/// Testing function for updateing data
-async fn data_update_loop(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>) {
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    let group_name = "tg".to_string();
+fn setup_servers(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>) {
+    let group_name = "test".to_string();
     let group = Arc::new(DirtyCheckLock::new(MessageGroup::new(
         nadir_types::model::MessageGroup {
             id: group_name.clone(),
-            title: "Telegram".into(),
+            title: "Test".into(),
             capacity: 30,
             pinned_capacity: 3,
-            importance: 0,
+            importance: -4,
         },
     )));
     {
         data.write().add_group(group.clone());
     }
-    handle
-        .send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)))
-        .unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let test_server = TestServer::new(handle.clone(), group);
+    tokio::spawn(test_server.serve());
 
-    let group_name_2 = "maildir".to_string();
+    let group_name_2 = "test2".to_string();
     let group_2 = Arc::new(DirtyCheckLock::new(MessageGroup::new(
         nadir_types::model::MessageGroup {
             id: group_name_2.clone(),
-            title: "Maildir".into(),
+            title: "Test2".into(),
             capacity: 30,
             pinned_capacity: 3,
             importance: -4,
@@ -90,37 +88,9 @@ async fn data_update_loop(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupL
     {
         data.write().add_group(group_2.clone());
     }
+    let test_server_2 = TestServer::new(handle.clone(), group_2);
+    tokio::spawn(test_server_2.serve());
 
-    let mut i: u64 = 1;
-    loop {
-        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-        {
-            let mut group = group.write();
-            group.add_message(nadir_types::model::Message {
-                id: format!("aaa{}", i % 24),
-                counter: None,
-                tags: vec![format!("foo{}", i % 24)],
-                body: format!("{}", i),
-                time: Some(chrono::Utc::now()),
-            });
-        }
-
-        {
-            let mut group = group_2.write();
-            group.add_message(nadir_types::model::Message {
-                id: format!("aaa{}", i % 17),
-                counter: None,
-                tags: vec![format!("foo{}", i % 17)],
-                body: format!("{}", i),
-                time: Some(chrono::Utc::now()),
-            });
-            i = i.wrapping_add(i << 17).wrapping_add(i >> 13);
-        }
-        handle
-            .send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)))
-            .unwrap();
-    }
 }
 
 async fn time_update_loop(handle: CursiveHandle) -> ! {
