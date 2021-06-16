@@ -21,7 +21,7 @@ use view::{
     group_list_view::GroupListView,
     group_view::{GroupRef, GroupView},
 };
-use server::{Server, TestServer};
+use server::{Server, GroupServer, TestServer, MaildirLocalServer};
 
 pub type CursiveHandle = crossbeam::channel::Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>;
 
@@ -59,38 +59,43 @@ async fn main() {
 }
 
 fn setup_servers(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>) {
-    let group_name = "test".to_string();
-    let group = Arc::new(DirtyCheckLock::new(MessageGroup::new(
-        nadir_types::model::MessageGroup {
-            id: group_name.clone(),
-            title: "Test".into(),
-            capacity: 30,
-            pinned_capacity: 3,
-            importance: -4,
-        },
-    )));
-    {
-        data.write().add_group(group.clone());
-    }
-    let test_server = TestServer::new(handle.clone(), group);
-    tokio::spawn(test_server.serve());
+    //let group_name = "test".to_string();
+    //let group = Arc::new(DirtyCheckLock::new(MessageGroup::new(
+    //    nadir_types::model::MessageGroup {
+    //        id: group_name.clone(),
+    //        title: "Test".into(),
+    //        capacity: 30,
+    //        pinned_capacity: 3,
+    //        importance: -4,
+    //    },
+    //)));
+    //{
+    //    data.write().add_group(group.clone());
+    //}
+    //let test_server = TestServer::new(GroupServer::new(handle.clone(), group));
+    //tokio::spawn(test_server.serve());
 
-    let group_name_2 = "test2".to_string();
-    let group_2 = Arc::new(DirtyCheckLock::new(MessageGroup::new(
-        nadir_types::model::MessageGroup {
-            id: group_name_2.clone(),
-            title: "Test2".into(),
-            capacity: 30,
-            pinned_capacity: 3,
-            importance: -4,
-        },
-    )));
-    {
-        data.write().add_group(group_2.clone());
-    }
-    let test_server_2 = TestServer::new(handle.clone(), group_2);
-    tokio::spawn(test_server_2.serve());
+    setup_maildir_servers(handle, data, vec!["/home/zenithal/M/IM", "/home/zenithal/M/THU", "/home/zenithal/M/ME"].into_iter().map(|x| x.to_string()).collect());
+}
 
+fn setup_maildir_servers(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>, paths: Vec<String>) {
+    for (i, path) in paths.into_iter().enumerate() {
+        let group_name = path.clone();
+        let group = Arc::new(DirtyCheckLock::new(MessageGroup::new(
+            nadir_types::model::MessageGroup {
+                id: group_name.clone(),
+                title: path.clone(),
+                capacity: 100,
+                pinned_capacity: 10,
+                importance: i as i32,
+            },
+        )));
+        {
+            data.write().add_group(group.clone());
+        }
+        let maildir_local_server = MaildirLocalServer::new(GroupServer::new(handle.clone(), group), path.clone());
+        tokio::spawn(maildir_local_server.serve());
+    }
 }
 
 async fn time_update_loop(handle: CursiveHandle) -> ! {

@@ -6,10 +6,14 @@ use async_trait::async_trait;
 
 #[async_trait]
 pub trait Server {
-    fn new(handle: CursiveHandle, data: Arc<DirtyCheckLock<MessageGroup>>) -> Self;
     async fn serve(self);
 }
 
-mod test_server;
+mod group_server;
+pub use group_server::GroupServer;
 
+mod test_server;
 pub use test_server::TestServer;
+
+mod maildir_local_server;
+pub use maildir_local_server::MaildirLocalServer;
