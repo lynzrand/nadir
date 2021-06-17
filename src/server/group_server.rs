@@ -2,11 +2,11 @@ use super::*;
 
 pub struct GroupServer {
     pub handle: CursiveHandle,
-    pub data: Arc<DirtyCheckLock<MessageGroup>>,
+    pub data: Arc<DirtyCheckLock<crate::model::MessageGroup>>,
 }
 
 impl GroupServer {
-    pub fn new(handle: CursiveHandle, data: Arc<DirtyCheckLock<MessageGroup>>) -> Self {
+    pub fn new(handle: CursiveHandle, data: Arc<DirtyCheckLock<crate::model::MessageGroup>>) -> Self {
         Self {
             handle,
             data,

@@ -73,3 +73,7 @@ impl GroupList {
         self.map.iter().map(|(k, (_, v))| (k.as_str(), v))
     }
 }
+
+struct GroupEntry {
+    // id:
+}

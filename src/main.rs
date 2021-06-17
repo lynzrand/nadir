@@ -11,8 +11,9 @@ use chrono::{DateTime, Local};
 use cursive::{
     event::Event,
     theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*},
+    traits::Nameable,
     view::{Margins, Selector, SizeConstraint},
-    views::{self, DebugView, LinearLayout, ResizedView, TextView},
+    views::{self, DebugView, HideableView, LinearLayout, ResizedView, TextView},
     Cursive, View,
 };
 use model::{group_list::GroupList, MessageGroup};
@@ -40,10 +41,20 @@ async fn main() {
     siv.add_fullscreen_layer(views::Layer::new(views::ResizedView::with_full_screen(
         views::LinearLayout::vertical()
             .child(views::PaddedView::new(Margins::tb(0, 1), init_stat()))
-            // .child(ResizedView::with_max_height(6, DebugView::new()))
+            .child(
+                HideableView::new(ResizedView::with_max_height(6, DebugView::new()))
+                    .hidden()
+                    .with_name("debug"),
+            )
             .child(build_body(data.clone())),
     )));
-    siv.add_global_callback(Event::CtrlChar('d'), |c| c.toggle_debug_console());
+
+    siv.add_global_callback(Event::CtrlChar('d'), |c| {
+        c.call_on_name("debug", |v: &mut HideableView<ResizedView<DebugView>>| {
+            v.set_visible(!v.is_visible())
+        });
+    });
+
     let handle = siv.cb_sink().clone();
 
     tokio::spawn(time_update_loop(handle.clone()));

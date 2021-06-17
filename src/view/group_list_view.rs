@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use cursive::{
-    event::EventResult,
     traits::Nameable,
     view::ViewWrapper,
-    views::{self, LinearLayout, ResizedView},
+    views::{LinearLayout, ResizedView},
     wrap_impl, Vec2, View,
 };
-use log::info;
+use log::debug;
 
 use crate::{model::group_list::GroupList, util::DirtyCheckLock};
 
@@ -50,7 +49,7 @@ impl GroupListView {
 
     fn dirty_check_and_layout_update(&mut self) {
         let is_dirty = self.data.is_dirty();
-        info!(
+        debug!(
             "group list: dirty check: dirty {}, size {:?}",
             is_dirty, self.layout.last_size
         );
@@ -66,24 +65,25 @@ impl GroupListView {
             // do data update
 
             // TODO: replace this naive method with a diff check
-            let len = self.view.get_inner_mut().len();
+            let inner = self.view.get_inner_mut();
+            let len = inner.len();
+
+            let focus = inner.get_focus_index();
             for i in (0..len).rev() {
-                self.view.get_inner_mut().remove_child(i);
+                inner.remove_child(i);
             }
 
             if guard.is_empty() {
-                self.view.get_inner_mut().add_child((self.if_empty)());
+                inner.add_child((self.if_empty)());
             } else {
                 for (i, (n, v)) in guard.iter().enumerate() {
                     v.set_dirty(true);
-                    self.view
-                        .get_inner_mut()
-                        .add_child(GroupView::new(v.clone()).with_name(format!("v-group-{}", n)));
-                    self.view.get_inner_mut().set_weight(i, 1);
+                    inner.add_child(GroupView::new(v.clone()).with_name(format!("v-group-{}", n)));
+                    inner.set_weight(i, 1);
                 }
             }
 
-            log::info!("refreshed");
+            let _ = inner.set_focus_index(focus);
         }
 
         // Do layout updates?
