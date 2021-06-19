@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use futures::StreamExt;
-use log::warn;
+use log::{debug, info, trace, warn};
 use nadir_types::{message::ApiMessage, model::MessageGroup};
 use tokio::{
     net::{TcpSocket, TcpStream},
@@ -19,12 +19,15 @@ pub async fn start_server(
     let port = TcpSocket::new_v6()
         .or_else(|_| TcpSocket::new_v4())
         .expect("Failed to listten on socket");
-    port.bind(listen.parse().expect("Malformed address"))
-        .expect("Failed to listen");
+    let addr = listen.parse().expect("Malformed address");
+    port.bind(addr).expect("Failed to listen");
 
     let (ch_send, ch_recv) = tokio::sync::mpsc::unbounded_channel();
     tokio::spawn(batch_process_messages(ch_recv, handle, data));
     let listener = port.listen(1024).expect("failed to listen");
+
+    info!("listening on {}", addr);
+
     loop {
         let (link, socket) = match listener.accept().await {
             Ok(x) => x,
@@ -39,9 +42,10 @@ pub async fn start_server(
 
 async fn accept_connection(
     link: TcpStream,
-    socket: SocketAddr,
+    _socket: SocketAddr,
     stream: tokio::sync::mpsc::UnboundedSender<ApiMessage>,
 ) -> Result<(), tokio_tungstenite::tungstenite::Error> {
+    info!("accepted connection to {}", _socket);
     let mut conn = tokio_tungstenite::accept_async(link).await?;
     while let Some(Ok(x)) = conn.next().await {
         let t = match x.to_text() {
@@ -56,6 +60,8 @@ async fn accept_connection(
                 continue;
             }
         };
+
+        info!("recv message {:?}", value);
 
         let _ = stream.send(value);
     }

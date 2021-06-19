@@ -58,6 +58,7 @@ async fn main() {
 
     tokio::spawn(time_update_loop(handle.clone()));
     tokio::spawn(data_update_loop(handle, data));
+    // tokio::spawn(server::start_server(handle.clone(), data, "[::1]:18234"));
 
     let crossterm_backend = cursive::backends::crossterm::Backend::init().unwrap();
     let buffered_backend = Box::new(cursive_buffered_backend::BufferedBackend::new(
