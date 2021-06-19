@@ -10,7 +10,7 @@ The notification displayer frontend. Exports interfaces in websocket and unix do
 
 ## Protocol
 
-TODO: Describe the protocol.
+A simple JSON Websocket protocol. See [docs/protocol.md](docs/protocol.md).
 
 ## License
 
