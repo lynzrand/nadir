@@ -88,8 +88,10 @@ impl MaildirLocalServer {
 #[async_trait]
 impl Server for MaildirLocalServer {
     async fn serve(self) {
-        // init, then watch
-        self.single_serve();
-        self.notify_serve();
+        std::thread::spawn(move || {
+            // init, then watch
+            self.single_serve();
+            self.notify_serve();
+        });
     }
 }
