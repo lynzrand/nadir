@@ -6,7 +6,7 @@ Nadir is a TUI tool for receiving and showing notifications. This tool is mostly
 
 ### nadir-notify
 
-The notification displayer frontend. Exports interfaces in websocket and unix domain socket, and allow other apps to connect and display notifications.
+The notification displayer frontend. Exports interfaces in websocket ~~and unix domain socket~~, and allow other apps to connect and display notifications.
 
 ## Protocol
 
