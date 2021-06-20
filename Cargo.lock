@@ -647,6 +647,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nadir-backend-common"
+version = "0.1.0"
+
+[[package]]
+name = "nadir-maildir-backend"
+version = "0.1.0"
+
+[[package]]
 name = "nadir-notify"
 version = "0.1.0"
 dependencies = [
@@ -679,6 +687,10 @@ dependencies = [
  "chrono",
  "serde",
 ]
+
+[[package]]
+name = "naidr-telegram-backend"
+version = "0.1.0"
 
 [[package]]
 name = "ntapi"

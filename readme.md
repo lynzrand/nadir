@@ -4,9 +4,18 @@ Nadir is a TUI tool for receiving and showing notifications. This tool is mostly
 
 ## Components
 
-### nadir-notify
+### `nadir-notify`
 
 The notification displayer frontend. Exports interfaces in websocket ~~and unix domain socket~~, and allow other apps to connect and display notifications.
+
+### Backends
+
+Provides notification adapter for various programs. Resides in `backends/` folder and has crate names like `nadir-{}-backend`.
+
+| Status | Backend    | Description                    |
+| ------ | ---------- | ------------------------------ |
+| WIP    | `maildir`  | Adapter for mail directories.  |
+| WIP    | `telegram` | Adapter for telegram messages. |
 
 ## Protocol
 
