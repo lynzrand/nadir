@@ -1,8 +1,8 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 
 use futures::StreamExt;
-use log::{debug, info, trace, warn};
-use nadir_types::{message::ApiMessage, model::MessageGroup};
+use log::{info, warn};
+use nadir_types::message::ApiMessage;
 use tokio::{
     net::{TcpSocket, TcpStream},
     select,
@@ -88,7 +88,7 @@ async fn batch_process_messages(
         let mut data = data.write();
         for item in batch.drain(..) {
             match item {
-                ApiMessage::Add(msg) => {
+                ApiMessage::Put(msg) => {
                     let group = data.get_group(&msg.group).map(|g| g.write());
                     if let Some(mut g) = group {
                         g.add_messages(msg.items.into_iter());
@@ -104,6 +104,9 @@ async fn batch_process_messages(
                     data.add_group(Arc::new(DirtyCheckLock::new(
                         crate::model::MessageGroup::new(msg.group),
                     )));
+                }
+                ApiMessage::RemoveGroup(msg) => {
+                    data.remove_group(msg.group);
                 }
                 ApiMessage::SetGroupCounter(msg) => {
                     let group = data.get_group(&msg.group).map(|g| g.write());

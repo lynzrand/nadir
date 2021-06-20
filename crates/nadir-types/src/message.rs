@@ -5,9 +5,10 @@ use crate::model::{Message, MessageGroup};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "_t")]
 pub enum ApiMessage {
-    Add(AddMsg),
+    Put(PutMsg),
     Remove(RemoveMsg),
     PutGroup(PutGroupMsg),
+    RemoveGroup(RemoveGroupMsg),
     SetGroupCounter(SetGroupCounterMsg),
     Config,
 }
@@ -15,7 +16,7 @@ pub enum ApiMessage {
 /// Add notifications in Nadir
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub struct AddMsg {
+pub struct PutMsg {
     /// The group ID
     pub group: String,
 
@@ -43,6 +44,12 @@ pub struct RemoveMsg {
 pub struct PutGroupMsg {
     /// Group metadata
     pub group: MessageGroup,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "_t")]
+pub struct RemoveGroupMsg {
+    pub group: String,
 }
 
 /// Sets the counter field on a specific group.
