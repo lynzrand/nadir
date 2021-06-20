@@ -1,13 +1,13 @@
+pub mod fronend;
 pub mod model;
 pub mod opt;
-pub mod server;
 pub mod ui;
 pub mod util;
 pub mod view;
 
 use std::sync::Arc;
 
-use chrono::{DateTime, Local};
+use chrono::Local;
 use cursive::{
     event::Event,
     theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*},
@@ -18,10 +18,7 @@ use cursive::{
 };
 use model::{group_list::GroupList, MessageGroup};
 use util::DirtyCheckLock;
-use view::{
-    group_list_view::GroupListView,
-    group_view::{GroupRef, GroupView},
-};
+use view::group_list_view::GroupListView;
 
 pub type CursiveHandle = crossbeam::channel::Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>;
 
