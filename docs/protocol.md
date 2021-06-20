@@ -2,13 +2,15 @@
 
 Nadir uses a simple JSON websocket protocol to transport notify messages. This will be called "Nadir Notify Protocol" (NNP) in the following documents.
 
-NNP contains two participants: _the client_ usually refers to `nadir-notify` program or compatible implementations; _the server_ refers to any other program that sends notify messages to the client.
+NNP contains two participants: _the Frontend_ usually refers to `nadir-notify` program or compatible implementations; _the Backend_ refers to any other program that sends notify messages to the Frontend.
 
 ## Data Model
 
 Every notify message is a `Message` in NNP. Each `Message` belongs to exactly one `MessageGroup`.
 
-A `MessageGroup` is the place you're displaying your message in. It has two message slots: pinned and not-pinned. Pinned messages will show before not-pinned ones. In either slots, messages are sorted in newest-first order. It also has a message counter field to indicate how many messages are in this group.
+A `MessageGroup` is the place you're displaying your message in. It has two message slots: _pinned_ and _not-pinned_. Pinned messages will show before not-pinned ones. In both slots, messages are sorted in newest-first order. It also has a message counter field to indicate how many messages are in this group.
+
+A `Message` has an "unique" `id` to identify it within its group and slot. When adding two message with the same `id` into the same slot, the one added later will replace the earlier one.
 
 ```ts
 interface Message {
@@ -69,7 +71,7 @@ interface MessageGroup {
 
 ## Messages
 
-All message sent and received by the Client MUST be a JSON string. Every message MUST contain a string field named `_t` to indicate the type of the message.
+All message sent and received by the Frontend must be a JSON string. Every message must contain a string field named `_t` to indicate the type of the message.
 
 ```ts
 interface ApiMessage {
@@ -77,40 +79,116 @@ interface ApiMessage {
 }
 ```
 
-### Server Messages
+### Backend Messages
 
-Most messages in NNP are sent from the Server.
+Most messages in NNP are sent from the Backend.
 
 ```ts
-interface ServerMessage extends ApiMessage {
-    _t: 'put_group' | 'remove_group' | 'put' | 'remove'
+interface BackendMessage extends ApiMessage {
+    _t: 'put_group' | 'remove_group' | 'put' | 'remove' |
+        'set_group_counter' | 'req_snapshot'
 }
 ```
 
-`put_group` and `remove_group` updates `MessageGroup`s in the client. `put_group` will update group information for an existing group or add a new group, and `remove_group` will remove the given group if it exists.
+`put_group` and `remove_group` updates `MessageGroup`s in the Frontend. `put_group` will update group information for an existing group or add a new group. `remove_group` will remove the given group, and any messages in this group, if it exists.
 
 ```ts
-interface PutGroupMessage extends ServerMessage {
+interface PutGroupMessage extends BackendMessage {
     _t: 'put_group'
     group: MessageGroup
 }
 
-interface RemoveGroupMessage extends ServerMessage {
+interface RemoveGroupMessage extends BackendMessage {
     _t: 'remove_group'
     group: string
 }
 ```
 
-`put` and `remove` updates messages in a certain `MessageGroup`.
+`put` and `remove` updates messages in a certain `MessageGroup`. They can add or remove multiple messages in a group at once.
+
+```ts
+interface PutMessage extends BackendMessage {
+    _t: 'put'
+    group: string
+    items: Message[]
+}
+
+interface RemoveMessage extends BackendMessage {
+    _t: 'remove'
+    items: string[]
+}
+```
+
+`set_group_counter` sets the counter in the specified group. This message is separated from other group messages because it's called more frequently.
+
+```ts
+interface SetGroupCounterMessage extends BackendMessage {
+    _t: 'set_group_counter'
+    group: string
+    counter: uint64
+}
+```
+
+The backend can also request a snapshot of a certain group via `req_snapshot`. The backend must supply a unique `msg_id` for the frontend to response.
+
+```ts
+interface MessageRequiringResponse extends BackendMessage {
+    _t: 'req_snapshot'
+    msg_id: string
+}
+
+interface RequestSnapshotMessage extends MessageRequiringResponse {
+    _t: 'req_snapshot'
+    group: string
+}
+```
 
 TODO
 
-### Client Messages
+### Frontend Messages
+
+The Frontend may send messages in response of user action.
+
+```ts
+interface FrontendMessage {
+    _t: 'user_action' | 'resp_snapshot'
+}
+```
+
+A `user_action` message indicates that the user has performed some kind of action on a specific notify message. This feature has not yet been implemented, so the Frontend might send this kind of message to any client.
+
+The only available action at this time is `click`, which represents one clicking on or pressing Space / Enter when selecting this message.
+
+```ts
+interface UserActionMessage extends FrontendMessage {
+    _t: 'user_action'
+    group: string
+    message: string
+    action: 'click'
+}
+```
+
+The Frontend may also send messages in reply to some requests. These response may not be in the same order as the requests, and may be separated by non-response messages.
+
+A `resp_snapshot` message is the response of the `req_snapshot` message. It contains the definition of the group and messages currently stored in frontend.
+
+```ts
+interface ResponseMessage extends BackendMessage {
+    _t: 'resp_snapshot'
+    reply_to: string
+}
+
+interface SnapshotResponseMessage extends ResponseMessage {
+    _t: 'resp_snapshot'
+    group: MessageGroup
+    messages: Message[]
+}
+```
 
 TODO
 
 ## Connection
 
-The connection can be initiated from either the Client or the Server.
+The connection can be initiated from either the Frontend or the Backend.
 
 TODO: verification?
