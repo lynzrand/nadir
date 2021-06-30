@@ -8,6 +8,8 @@ use tokio::{
     select,
     sync::mpsc::UnboundedReceiver,
 };
+use tokio_tungstenite::MaybeTlsStream;
+use url::Url;
 
 use crate::{model::group_list::GroupList, util::DirtyCheckLock, CursiveHandle};
 
@@ -40,13 +42,47 @@ pub async fn start_server(
     }
 }
 
+pub async fn connect_to_backends(
+    backend: Url,
+    stream: tokio::sync::mpsc::UnboundedSender<ApiMessage>,
+) {
+    let request = match hyper::Request::builder().uri(backend.as_str()).body(()) {
+        Ok(req) => req,
+        Err(e) => {
+            log::error!("{}", e);
+            return;
+        }
+    };
+    let (conn, _) = match tokio_tungstenite::connect_async(request).await {
+        Ok(conn) => conn,
+        Err(e) => {
+            log::error!("{}", e);
+            return;
+        }
+    };
+    match connection_loop(conn, stream).await {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("{}", e)
+        }
+    };
+}
+
 async fn accept_connection(
     link: TcpStream,
     _socket: SocketAddr,
     stream: tokio::sync::mpsc::UnboundedSender<ApiMessage>,
 ) -> Result<(), tokio_tungstenite::tungstenite::Error> {
     info!("accepted connection to {}", _socket);
-    let mut conn = tokio_tungstenite::accept_async(link).await?;
+    let link = MaybeTlsStream::Plain(link);
+    let conn = tokio_tungstenite::accept_async(link).await?;
+    connection_loop(conn, stream).await
+}
+
+async fn connection_loop(
+    mut conn: tokio_tungstenite::WebSocketStream<MaybeTlsStream<TcpStream>>,
+    stream: tokio::sync::mpsc::UnboundedSender<ApiMessage>,
+) -> Result<(), tokio_tungstenite::tungstenite::Error> {
     while let Some(Ok(x)) = conn.next().await {
         let t = match x.to_text() {
             Ok(text) => text,
