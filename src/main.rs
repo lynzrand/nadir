@@ -8,6 +8,7 @@ pub mod view;
 use std::sync::Arc;
 
 use chrono::Local;
+use clap::Clap;
 use cursive::{
     event::Event,
     theme::{BaseColor::*, Color::*, ColorStyle, Palette, PaletteColor::*},
@@ -16,7 +17,8 @@ use cursive::{
     views::{self, DebugView, HideableView, LinearLayout, ResizedView, TextView},
     Cursive, View,
 };
-use model::{group_list::GroupList, MessageGroup};
+use model::group_list::GroupList;
+use opt::Opt;
 use util::DirtyCheckLock;
 use view::group_list_view::GroupListView;
 
@@ -24,6 +26,9 @@ pub type CursiveHandle = crossbeam::channel::Sender<Box<dyn FnOnce(&mut Cursive)
 
 #[tokio::main]
 async fn main() {
+    // Commandline options
+    let opt = Arc::new(Opt::parse());
+
     let mut siv = cursive::default();
     let theme = init_theme();
     siv.set_theme(theme);
@@ -53,82 +58,28 @@ async fn main() {
 
     let handle = siv.cb_sink().clone();
 
-    tokio::spawn(time_update_loop(handle.clone()));
-    tokio::spawn(data_update_loop(handle, data));
-    // tokio::spawn(server::start_server(handle.clone(), data, "[::1]:18234"));
+    start_server(handle.clone(), data, opt.clone()).await;
 
     let crossterm_backend = cursive::backends::crossterm::Backend::init().unwrap();
     let buffered_backend = Box::new(cursive_buffered_backend::BufferedBackend::new(
         crossterm_backend,
     ));
 
+    tokio::spawn(time_update_loop(handle.clone()));
     tokio::task::block_in_place(|| siv.run_with(|| buffered_backend));
 }
 
 /// Testing function for updateing data
-async fn data_update_loop(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>) {
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    let group_name = "tg".to_string();
-    let group = Arc::new(DirtyCheckLock::new(MessageGroup::new(
-        nadir_types::model::MessageGroup {
-            id: group_name.clone(),
-            title: "Telegram".into(),
-            capacity: 30,
-            pinned_capacity: 3,
-            importance: 0,
-        },
-    )));
-    {
-        data.write().add_group(group.clone());
-    }
-    handle
-        .send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)))
-        .unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+async fn start_server(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>, opt: Arc<Opt>) {
+    let config = opt.config.clone().unwrap_or_else(|| "./nadir.toml".into());
+    let config_file = tokio::fs::read(config)
+        .await
+        .expect("Failed to read config file");
+    let config_file: opt::Config =
+        toml::from_slice(&config_file).expect("Failed to parse config file");
 
-    let group_name_2 = "maildir".to_string();
-    let group_2 = Arc::new(DirtyCheckLock::new(MessageGroup::new(
-        nadir_types::model::MessageGroup {
-            id: group_name_2.clone(),
-            title: "Maildir".into(),
-            capacity: 30,
-            pinned_capacity: 3,
-            importance: -4,
-        },
-    )));
-    {
-        data.write().add_group(group_2.clone());
-    }
-
-    let mut i: u64 = 1;
-    loop {
-        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-        {
-            let mut group = group.write();
-            group.add_message(nadir_types::model::Message {
-                id: format!("aaa{}", i % 24),
-                counter: None,
-                tags: vec![format!("foo{}", i % 24)],
-                body: format!("{}", i),
-                time: Some(chrono::Utc::now()),
-            });
-        }
-
-        {
-            let mut group = group_2.write();
-            group.add_message(nadir_types::model::Message {
-                id: format!("aaa{}", i % 17),
-                counter: None,
-                tags: vec![format!("foo{}", i % 17)],
-                body: format!("{}", i),
-                time: Some(chrono::Utc::now()),
-            });
-            i = i.wrapping_add(i << 17).wrapping_add(i >> 13);
-        }
-        handle
-            .send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)))
-            .unwrap();
+    for port in config_file.websocket_listen {
+        tokio::spawn(fronend::start_server(handle.clone(), data.clone(), port));
     }
 }
 

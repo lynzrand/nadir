@@ -29,19 +29,23 @@ indexmap = "1.6"
 # UI stuff
 cursive = { version="0.16", default-features=false, features=["crossterm-backend"] }
 cursive_buffered_backend = "0.5"
-cursive-aligned-view = "0.4"
+cursive-aligned-view = "0.5"
 
 # text stuff
 unicode-segmentation = "1"
 unicode-width = "0.1"
 unicode-truncate = "0.2"
+clap = "3.0.0-beta.2"
 
 # error management
 thiserror = "1"
 
 log = "*"
 
+# Serde
+serde = "1"
 serde_json = "1"
+toml = "0.5.8"
 
 [workspace]
 members = [".", "crates/*", "backends/*"]
