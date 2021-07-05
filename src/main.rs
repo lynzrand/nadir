@@ -72,11 +72,22 @@ async fn main() {
 /// Testing function for updateing data
 async fn start_server(handle: CursiveHandle, data: Arc<DirtyCheckLock<GroupList>>, opt: Arc<Opt>) {
     let config = opt.config.clone().unwrap_or_else(|| "./nadir.toml".into());
-    let config_file = tokio::fs::read(config)
-        .await
-        .expect("Failed to read config file");
-    let config_file: opt::Config =
-        toml::from_slice(&config_file).expect("Failed to parse config file");
+    let config_file = match tokio::fs::read(&config).await {
+        Ok(c) => c,
+        Err(e) => err_and_exit(format_args!(
+            "Cannot read config file at path '{}'.\nReason: {}",
+            config.display(),
+            e
+        )),
+    };
+    let config_file: opt::Config = match toml::from_slice(&config_file) {
+        Ok(c) => c,
+        Err(e) => err_and_exit(format_args!(
+            "Failed to parse config file at '{}'\nReason: {}",
+            config.display(),
+            e
+        )),
+    };
 
     for port in config_file.websocket_listen {
         tokio::spawn(fronend::start_server(handle.clone(), data.clone(), port));
@@ -199,6 +210,11 @@ fn build_empty_view() -> Box<dyn View> {
             cursive::align::Align::center(),
         ),
     ))
+}
+
+fn err_and_exit(message: std::fmt::Arguments) -> ! {
+    eprintln!("Error: {}", message);
+    std::process::exit(1);
 }
 
 pub const NADIR_NAME: &str = r"
