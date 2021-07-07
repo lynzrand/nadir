@@ -1,5 +1,5 @@
 //! Type models and containers for this specific use
-pub mod message_group;
 pub mod group_list;
+pub mod message_group;
 
-pub use message_group::MessageGroup;
+pub use self::message_group::MessageGroup;

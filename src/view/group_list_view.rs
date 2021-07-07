@@ -8,9 +8,8 @@ use cursive::{
 };
 use log::debug;
 
-use crate::{model::group_list::GroupList, util::DirtyCheckLock};
-
 use super::group_view::GroupView;
+use crate::{model::group_list::GroupList, util::DirtyCheckLock};
 
 const MIN_SIZE_FOR_EACH_LAYOUT: usize = 3;
 

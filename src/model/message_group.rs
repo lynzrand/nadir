@@ -1,4 +1,4 @@
-use std::cmp::{min};
+use std::cmp::min;
 
 use hashlink::lru_cache::LruCache;
 use nadir_types::model;

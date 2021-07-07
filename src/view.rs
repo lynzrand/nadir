@@ -2,7 +2,7 @@ pub mod group_list_view;
 pub mod group_view;
 pub mod tag_view;
 
-use std::fmt::{Display, Write};
+use std::fmt::Display;
 
 /// Format a number to at most 4 chars
 struct SimplifyNumber(u64);

@@ -10,9 +10,8 @@ use indexmap::IndexSet;
 use log::debug;
 use smol_str::SmolStr;
 
-use crate::{model::MessageGroup, util::DirtyCheckLock};
-
 use super::tag_view::TagView;
+use crate::{model::MessageGroup, util::DirtyCheckLock};
 
 pub type GroupRef = Arc<DirtyCheckLock<MessageGroup>>;
 

@@ -17,10 +17,11 @@ use cursive::{
     views::{self, DebugView, HideableView, LinearLayout, ResizedView, TextView},
     Cursive, View,
 };
-use model::group_list::GroupList;
-use opt::Opt;
-use util::DirtyCheckLock;
-use view::group_list_view::GroupListView;
+
+use self::{
+    model::group_list::GroupList, opt::Opt, util::DirtyCheckLock,
+    view::group_list_view::GroupListView,
+};
 
 pub type CursiveHandle = crossbeam::channel::Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>;
 

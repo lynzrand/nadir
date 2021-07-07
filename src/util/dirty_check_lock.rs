@@ -1,5 +1,6 @@
-use parking_lot::RwLock;
 use std::sync::atomic::AtomicBool;
+
+use parking_lot::RwLock;
 
 /// A reader-writer lock with dirty state check. The dirty state will be set whenever
 /// the lock is write-locked, and is cleared manually or at reads.
