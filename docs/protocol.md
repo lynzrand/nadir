@@ -1,8 +1,11 @@
 # Protocol
 
-Nadir uses a simple JSON websocket protocol to transport notify messages. This will be called "Nadir Notify Protocol" (NNP) in the following documents.
+Nadir uses a simple JSON websocket protocol to transport notify messages.
 
-NNP contains two participants: _the Frontend_ usually refers to `nadir-notify` program or compatible implementations; _the Backend_ refers to any other program that sends notify messages to the Frontend.
+The protocol contains two participants: 
+
+- _The Frontend_ usually refers to `nadir-notify` program or other compatible implementations. They display notify messages to the user, and may optionally receive user interaction.
+- _The Backend_ refers to other programs that send notify messages to the Frontend.
 
 ## Data Model
 
@@ -80,6 +83,8 @@ interface ApiMessage {
 ```
 
 ### Backend Messages
+
+TODO: Add `Hello` message for exchanging metadata & verifying backends?
 
 Most messages in NNP are sent from the Backend.
 
@@ -189,6 +194,8 @@ TODO
 
 ## Connection
 
-The connection can be initiated from either the Frontend or the Backend.
+The connection can be initiated from either the Frontend or the Backend, with a WebSocket connection request to the other side. The connection COULD be a plain connection or a secure (wss) one, but the latter is preferred.
 
-TODO: verification?
+TODO: verification? ->
+
+A shared secret COULD be used to authorize clients. If such secret is set, the frontend MUST send a nonce string in `FrontendHelloMessage` (TODO). In response, the backends MUST send `hex(hmac_sha256(nonce, secret))` in its `BackendHelloMessage`(TODO). If the value doesn't match, the connection SHOULD be dropped immediately.
