@@ -25,11 +25,13 @@ url = { version="2", features=["serde"] }
 hashlink = "0.7"
 chrono = "0.4"
 indexmap = "1.6"
+slotmap = "1"
 
 # UI stuff
-cursive = { version="0.16", default-features=false, features=["crossterm-backend"] }
-cursive_buffered_backend = "0.5"
-cursive-aligned-view = "0.4"
+# cursive = { version="0.16", default-features=false, features=["crossterm-backend"] }
+# cursive_buffered_backend = "0.5"
+# cursive-aligned-view = "0.4"
+zi = "0.1.6"
 
 # text stuff
 unicode-segmentation = "1"

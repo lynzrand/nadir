@@ -1,6 +1,6 @@
 pub mod group_list_view;
 pub mod group_view;
-pub mod tag_view;
+// pub mod tag_view;
 
 use std::fmt::{Display, Write};
 

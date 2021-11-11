@@ -1,9 +1,4 @@
 use chrono::{DateTime, Datelike, Duration, Local};
-use cursive::{
-    theme::{ColorStyle, Effect, Style},
-    utils::markup::StyledString,
-    Rect, Vec2, View,
-};
 use nadir_types::model::Message;
 use smol_str::SmolStr;
 use unicode_truncate::UnicodeTruncateStr;

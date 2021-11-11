@@ -1,18 +1,16 @@
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
-use cursive::{
-    traits::Finder,
-    view::{Selector, ViewWrapper},
-    views::{HideableView, LinearLayout, NamedView, PaddedView, TextView},
-    Vec2, View,
-};
 use indexmap::IndexSet;
 use log::debug;
 use smol_str::SmolStr;
+use zi::{components::text::TextProperties, ComponentExt, FlexBasis};
 
-use crate::{model::MessageGroup, util::DirtyCheckLock};
+use crate::{
+    model::{group_list::GroupList, MessageGroup},
+    util::DirtyCheckLock,
+};
 
-use super::tag_view::TagView;
+// use super::tag_view::TagView;
 
 pub type GroupRef = Arc<DirtyCheckLock<MessageGroup>>;
 
@@ -20,27 +18,6 @@ pub struct GroupView {
     pub group: GroupRef,
 
     folded: bool,
-    layout: GroupViewLayout,
-    view: LinearLayout,
-}
-
-#[derive(Debug)]
-struct GroupViewLayout {
-    pub order_buf: IndexSet<SmolStr>,
-    pub reorder: Vec<usize>,
-    pub last_size: Vec2,
-    pub size_changed: bool,
-}
-
-impl Default for GroupViewLayout {
-    fn default() -> Self {
-        GroupViewLayout {
-            last_size: Vec2::default(),
-            size_changed: true,
-            order_buf: IndexSet::new(),
-            reorder: vec![],
-        }
-    }
 }
 
 impl GroupView {
@@ -48,8 +25,6 @@ impl GroupView {
         Self {
             group,
             folded: false,
-            layout: Default::default(),
-            view: LinearLayout::vertical(),
         }
     }
 
@@ -71,147 +46,131 @@ impl GroupView {
         self.group.is_dirty()
     }
 
-    fn available_vertical_space(&self) -> usize {
-        self.layout.last_size.y.saturating_sub(1)
-    }
+    // /// Do dirty check and update child view. This method does heavy diff checks
+    // /// and should only be called on relayouts.
+    // pub fn dirty_check_and_update(&mut self) {
+    //     // Check folded state
+    //     {
+    //         let folded = self.folded;
+    //         self.view
+    //             .call_on_name::<HideableView<NamedView<LinearLayout>>, _, _>(
+    //                 "msgs_hide",
+    //                 move |b| b.set_visible(!folded),
+    //             );
+    //     }
+    //     // Return if nothing has changed
+    //     if !(self.is_dirty() || self.layout.size_changed) {
+    //         return;
+    //     }
+    //     // Ensure view is initialized
+    //     if self.view.len() != 2 {
+    //         self.init_view()
+    //     }
+    //     debug_assert_eq!(self.view.len(), 2, "The view is left in an invalid state");
 
-    /// Initialize self's linear layout view
-    fn init_view(&mut self) {
-        assert_eq!(self.view.len(), 0, "View is changed before initialization");
-        self.view.add_child(NamedView::new(
-            "group-name",
-            // This title will be set in dirty_check_and_update
-            TextView::new(""),
-        ));
-        self.view.add_child(NamedView::new(
-            "msgs_hide",
-            HideableView::new(NamedView::new("msgs", LinearLayout::vertical())),
-        ));
-    }
+    //     // Calculate available spaces
+    //     let max_entry_cnt = self.available_vertical_space();
+    //     let max_pinned_cnt = (max_entry_cnt + 1) / 2;
 
-    /// Do dirty check and update child view. This method does heavy diff checks
-    /// and should only be called on relayouts.
-    pub fn dirty_check_and_update(&mut self) {
-        // Check folded state
-        {
-            let folded = self.folded;
-            self.view
-                .call_on_name::<HideableView<NamedView<LinearLayout>>, _, _>(
-                    "msgs_hide",
-                    move |b| b.set_visible(!folded),
-                );
-        }
-        // Return if nothing has changed
-        if !(self.is_dirty() || self.layout.size_changed) {
-            return;
-        }
-        // Ensure view is initialized
-        if self.view.len() != 2 {
-            self.init_view()
-        }
-        debug_assert_eq!(self.view.len(), 2, "The view is left in an invalid state");
+    //     // Acquire read lock
+    //     let group = self.group.read(true);
 
-        // Calculate available spaces
-        let max_entry_cnt = self.available_vertical_space();
-        let max_pinned_cnt = (max_entry_cnt + 1) / 2;
+    //     // Set group name
+    //     let counter = group.counter();
+    //     let content;
+    //     if counter > 1 {
+    //         content = format!("- [{}] {}", counter, group.meta().title);
+    //     } else {
+    //         content = format!("- {}", group.meta().title);
+    //     }
+    //     self.view
+    //         .call_on::<TextView, _, _>(&Selector::Name("group-name"), |v| {
+    //             v.set_content(content);
+    //         });
 
-        // Acquire read lock
-        let group = self.group.read(true);
+    //     // Set group body
+    //     let mut body = self
+    //         .view
+    //         .find_name::<LinearLayout>("msgs")
+    //         .expect("The messages view should always be present");
 
-        // Set group name
-        let counter = group.counter();
-        let content;
-        if counter > 1 {
-            content = format!("- [{}] {}", counter, group.meta().title);
-        } else {
-            content = format!("- {}", group.meta().title);
-        }
-        self.view
-            .call_on::<TextView, _, _>(&Selector::Name("group-name"), |v| {
-                v.set_content(content);
-            });
+    //     let mut focus = body.get_focus_index();
+    //     let focused_view = body
+    //         .get_child(focus)
+    //         .and_then(|x| x.downcast_ref::<TagView>());
+    //     let focused_id = focused_view.map(|x| x.id.clone());
 
-        // Set group body
-        let mut body = self
-            .view
-            .find_name::<LinearLayout>("msgs")
-            .expect("The messages view should always be present");
+    //     debug!(
+    //         "Handle focus on {}: focused: {}, id {:?}",
+    //         group.meta().title,
+    //         focus,
+    //         focused_id
+    //     );
 
-        let mut focus = body.get_focus_index();
-        let focused_view = body
-            .get_child(focus)
-            .and_then(|x| x.downcast_ref::<TagView>());
-        let focused_id = focused_view.map(|x| x.id.clone());
+    //     //TODO: Do diff between the old body and the new message list.
+    //     // Naive method: remove all children of that view and add more back
+    //     let children_size = body.len();
 
-        debug!(
-            "Handle focus on {}: focused: {}, id {:?}",
-            group.meta().title,
-            focus,
-            focused_id
-        );
+    //     for i in (0..children_size).rev() {
+    //         body.remove_child(i);
+    //     }
 
-        //TODO: Do diff between the old body and the new message list.
-        // Naive method: remove all children of that view and add more back
-        let children_size = body.len();
+    //     for (_id, pinned_item) in group.pinned_msgs.iter().rev().take(max_pinned_cnt) {
+    //         body.add_child(
+    //             LinearLayout::horizontal()
+    //                 .child(TextView::new("P "))
+    //                 .child(TagView::from(pinned_item)),
+    //         );
+    //         if focused_id.as_ref().map_or(false, |x| x == _id) {
+    //             let index = body.len() - 1;
+    //             focus = index;
+    //         }
+    //     }
 
-        for i in (0..children_size).rev() {
-            body.remove_child(i);
-        }
+    //     let pinned_size = group.pinned_msgs.len();
+    //     let remaining_size = max_entry_cnt - std::cmp::min(max_entry_cnt, pinned_size);
 
-        for (_id, pinned_item) in group.pinned_msgs.iter().rev().take(max_pinned_cnt) {
-            body.add_child(
-                LinearLayout::horizontal()
-                    .child(TextView::new("P "))
-                    .child(TagView::from(pinned_item)),
-            );
-            if focused_id.as_ref().map_or(false, |x| x == _id) {
-                let index = body.len() - 1;
-                focus = index;
-            }
-        }
+    //     for (_id, item) in group.msgs.iter().rev().take(remaining_size) {
+    //         body.add_child(PaddedView::lrtb(2, 0, 0, 0, TagView::from(item)));
+    //         if focused_id.as_ref().map_or(false, |x| x == _id) {
+    //             let index = body.len() - 1;
+    //             focus = index;
+    //         }
+    //     }
 
-        let pinned_size = group.pinned_msgs.len();
-        let remaining_size = max_entry_cnt - std::cmp::min(max_entry_cnt, pinned_size);
-
-        for (_id, item) in group.msgs.iter().rev().take(remaining_size) {
-            body.add_child(PaddedView::lrtb(2, 0, 0, 0, TagView::from(item)));
-            if focused_id.as_ref().map_or(false, |x| x == _id) {
-                let index = body.len() - 1;
-                focus = index;
-            }
-        }
-
-        // ignore the error if set index failed
-        // if !focused {
-        let _ = body.set_focus_index(focus);
-        // }
-    }
+    //     // ignore the error if set index failed
+    //     // if !focused {
+    //     let _ = body.set_focus_index(focus);
+    //     // }
+    // }
 }
 
-impl ViewWrapper for GroupView {
-    cursive::wrap_impl!(self.view: LinearLayout);
+impl zi::Component for GroupView {
+    type Message = ();
 
-    fn wrap_needs_relayout(&self) -> bool {
-        self.is_dirty()
+    type Properties = GroupRef;
+
+    fn create(
+        properties: Self::Properties,
+        frame: zi::Rect,
+        link: zi::ComponentLink<Self>,
+    ) -> Self {
+        Self::new(properties)
     }
 
-    fn wrap_required_size(&mut self, req: Vec2) -> Vec2 {
-        // take up the full space offered to self
-        let grp = self.group.read(false);
-        let msg_cnt = grp.msgs.len() + grp.pinned_msgs.len();
-        let size = Vec2::new(1, std::cmp::min(msg_cnt + 1, req.y));
-        drop(grp);
-        self.layout.size_changed = size != self.layout.last_size;
-        self.layout.last_size = size;
-        self.dirty_check_and_update();
-        size
+    fn view(&self) -> zi::Layout {
+        let lock = self.group.read(true);
+        zi::layout::column_iter(
+            lock.pinned_msgs
+                .iter()
+                .chain(lock.msgs.iter())
+                .map(|(k, v)| {
+                    zi::components::text::Text::item_with_key(
+                        FlexBasis::Auto,
+                        k.as_str(),
+                        TextProperties::new().content(k),
+                    )
+                }),
+        )
     }
-
-    fn wrap_layout(&mut self, size: Vec2) {
-        self.view.layout(size);
-    }
-}
-
-fn do_diff_check(source: &MessageGroup, last: &mut Vec<SmolStr>, order: &mut Vec<usize>) {
-    // source.msgs
 }

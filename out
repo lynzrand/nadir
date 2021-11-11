@@ -1,0 +1,219 @@
+   Compiling nadir-notify v0.1.0 (C:\projects\nadir)
+warning: unused import: `rc::Rc`
+ --> src\model\group_list.rs:4:5
+  |
+4 |     rc::Rc,
+  |     ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `super::MessageGroup`
+  --> src\model\group_list.rs:11:5
+   |
+11 | use super::MessageGroup;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `log::debug`
+ --> src\view\group_list_view.rs:4:5
+  |
+4 | use log::debug;
+  |     ^^^^^^^^^^
+
+warning: unused import: `parking_lot::RwLock`
+ --> src\view\group_list_view.rs:5:5
+  |
+5 | use parking_lot::RwLock;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Component`
+ --> src\view\group_list_view.rs:7:18
+  |
+7 | use zi::{layout, Component, FlexBasis};
+  |                  ^^^^^^^^^
+
+warning: unnecessary parentheses around type
+  --> src\view\group_list_view.rs:28:23
+   |
+28 |     type Properties = (Arc<DirtyCheckLock<GroupList>>);
+   |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove these parentheses
+   |
+   = note: `#[warn(unused_parens)]` on by default
+
+warning: unused import: `rc::Rc`
+ --> src\view\group_view.rs:1:11
+  |
+1 | use std::{rc::Rc, sync::Arc};
+  |           ^^^^^^
+
+warning: unused import: `indexmap::IndexSet`
+ --> src\view\group_view.rs:3:5
+  |
+3 | use indexmap::IndexSet;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `log::debug`
+ --> src\view\group_view.rs:4:5
+  |
+4 | use log::debug;
+  |     ^^^^^^^^^^
+
+warning: unused import: `smol_str::SmolStr`
+ --> src\view\group_view.rs:5:5
+  |
+5 | use smol_str::SmolStr;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `group_list::GroupList`
+ --> src\view\group_view.rs:9:13
+  |
+9 |     model::{group_list::GroupList, MessageGroup},
+  |             ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `chrono::Local`
+  --> src\main.rs:10:5
+   |
+10 | use chrono::Local;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `Write`
+ --> src\view.rs:5:25
+  |
+5 | use std::fmt::{Display, Write};
+  |                         ^^^^^
+
+warning: unused variable: `data`
+  --> src\fronend.rs:16:27
+   |
+16 | pub async fn start_server(data: Arc<DirtyCheckLock<GroupList>>, listen: &str) {
+   |                           ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `ch_recv`
+  --> src\fronend.rs:23:19
+   |
+23 |     let (ch_send, ch_recv) = tokio::sync::mpsc::unbounded_channel();
+   |                   ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ch_recv`
+
+warning: unused variable: `group`
+  --> src\model\group_list.rs:52:36
+   |
+52 |     pub fn remove_group(&mut self, group: impl AsRef<str>) -> Option<GroupRef> {
+   |                                    ^^^^^ help: if this is intentional, prefix it with an underscore: `_group`
+
+warning: unused variable: `groups`
+  --> src\model\group_list.rs:57:37
+   |
+57 |     pub fn remove_groups(&mut self, groups: impl Iterator<Item = impl AsRef<str>>) {
+   |                                     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_groups`
+
+warning: unused variable: `id`
+  --> src\model\group_list.rs:65:29
+   |
+65 |     pub fn get_group(&self, id: impl AsRef<str>) -> Option<&GroupRef> {
+   |                             ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: unused variable: `frame`
+  --> src\view\group_list_view.rs:32:9
+   |
+32 |         frame: zi::Rect,
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_frame`
+
+warning: unused variable: `link`
+  --> src\view\group_list_view.rs:33:9
+   |
+33 |         link: zi::ComponentLink<Self>,
+   |         ^^^^ help: if this is intentional, prefix it with an underscore: `_link`
+
+warning: unused variable: `frame`
+   --> src\view\group_view.rs:155:9
+    |
+155 |         frame: zi::Rect,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_frame`
+
+warning: unused variable: `link`
+   --> src\view\group_view.rs:156:9
+    |
+156 |         link: zi::ComponentLink<Self>,
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_link`
+
+warning: unused variable: `v`
+   --> src\view\group_view.rs:167:27
+    |
+167 |                 .map(|(k, v)| {
+    |                           ^ help: if this is intentional, prefix it with an underscore: `_v`
+
+warning: constant is never used: `BATCH_TIME`
+   --> src\fronend.rs:103:1
+    |
+103 | const BATCH_TIME: std::time::Duration = std::time::Duration::from_millis(10);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function is never used: `batch_process_messages`
+   --> src\fronend.rs:105:10
+    |
+105 | async fn batch_process_messages(
+    |          ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct is never constructed: `GroupEntry`
+  --> src\model\group_list.rs:86:8
+   |
+86 | struct GroupEntry {
+   |        ^^^^^^^^^^
+
+warning: field is never read: `listen`
+ --> src\opt.rs:7:5
+  |
+7 |     listen: Vec<String>,
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: constant is never used: `MIN_SIZE_FOR_EACH_LAYOUT`
+  --> src\view\group_list_view.rs:11:1
+   |
+11 | const MIN_SIZE_FOR_EACH_LAYOUT: usize = 3;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function is never used: `name`
+  --> src\view\group_view.rs:31:8
+   |
+31 |     fn name(&self) -> String {
+   |        ^^^^
+
+warning: associated function is never used: `is_dirty`
+  --> src\view\group_view.rs:45:8
+   |
+45 |     fn is_dirty(&self) -> bool {
+   |        ^^^^^^^^
+
+warning: function is never used: `data_update_loop`
+  --> src\main.rs:38:10
+   |
+38 | async fn data_update_loop(data: Arc<DirtyCheckLock<GroupList>>) {
+   |          ^^^^^^^^^^^^^^^^
+
+warning: function is never used: `time_update_loop`
+  --> src\main.rs:99:10
+   |
+99 | async fn time_update_loop() -> ! {
+   |          ^^^^^^^^^^^^^^^^
+
+warning: unused `Result` that must be used
+  --> src\main.rs:29:5
+   |
+29 | /     tokio::task::spawn_blocking(|| {
+30 | |         let mut app = zi::App::new(GroupListView::with(data));
+31 | |         app.run_event_loop(zi::frontend::default().unwrap())
+32 | |             .unwrap()
+33 | |     })
+34 | |     .await;
+   | |___________^
+   |
+   = note: `#[warn(unused_must_use)]` on by default
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: 33 warnings emitted
+
+    Finished dev [unoptimized + debuginfo] target(s) in 4.93s
+     Running `target\debug\nadir-notify.exe`

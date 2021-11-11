@@ -11,13 +11,9 @@ use tokio::{
 use tokio_tungstenite::MaybeTlsStream;
 use url::Url;
 
-use crate::{model::group_list::GroupList, util::DirtyCheckLock, CursiveHandle};
+use crate::{model::group_list::GroupList, util::DirtyCheckLock};
 
-pub async fn start_server(
-    handle: CursiveHandle,
-    data: Arc<DirtyCheckLock<GroupList>>,
-    listen: &str,
-) {
+pub async fn start_server(data: Arc<DirtyCheckLock<GroupList>>, listen: &str) {
     let port = TcpSocket::new_v6()
         .or_else(|_| TcpSocket::new_v4())
         .expect("Failed to listten on socket");
@@ -25,7 +21,7 @@ pub async fn start_server(
     port.bind(addr).expect("Failed to listen");
 
     let (ch_send, ch_recv) = tokio::sync::mpsc::unbounded_channel();
-    tokio::spawn(batch_process_messages(ch_recv, handle, data));
+    // tokio::spawn(batch_process_messages(ch_recv, handle, data));
     let listener = port.listen(1024).expect("failed to listen");
 
     info!("listening on {}", addr);
@@ -108,7 +104,7 @@ const BATCH_TIME: std::time::Duration = std::time::Duration::from_millis(10);
 
 async fn batch_process_messages(
     mut stream: UnboundedReceiver<ApiMessage>,
-    handle: CursiveHandle,
+    // handle: CursiveHandle,
     data: Arc<DirtyCheckLock<GroupList>>,
 ) {
     let mut batch = vec![];
@@ -155,6 +151,6 @@ async fn batch_process_messages(
                 }
             }
         }
-        let _ = handle.send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)));
+        // let _ = handle.send(Box::new(|c| c.on_event(cursive::event::Event::Refresh)));
     }
 }

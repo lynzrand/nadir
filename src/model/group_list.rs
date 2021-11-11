@@ -1,27 +1,28 @@
-use std::iter::once;
+use std::{
+    collections::{BTreeMap, HashMap},
+    iter::once,
+    rc::Rc,
+};
 
-use indexmap::IndexMap;
+use slotmap::{DefaultKey, SlotMap};
 
 use crate::view::group_view::GroupRef;
+
+use super::MessageGroup;
 
 /// A list of message groups, sorted by their metadata.
 #[derive(Debug, Default)]
 pub struct GroupList {
-    /// The mapping from group IDs to groups themselves, sorted by their
-    /// importance and then their ID.
-    map: IndexMap<String, (i32, GroupRef)>,
+    /// groups
+    groups: SlotMap<DefaultKey, GroupRef>,
+    name_index: HashMap<String, DefaultKey>,
+    importance_index: BTreeMap<(i32, String), DefaultKey>,
 }
 
 impl GroupList {
     /// Initialize an empty new group list
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Sort all groups inside self.
-    pub fn sort_self(&mut self) {
-        self.map
-            .sort_by(|k1, v1, k2, v2| v1.0.cmp(&v2.0).reverse().then(k1.cmp(k2)));
     }
 
     /// Insert a new group into this list, and then sort the groups to retain
@@ -33,36 +34,41 @@ impl GroupList {
         self.add_groups(once(group))
     }
 
-    /// Insert many groups into this list, and then sort the groups to retain
-    /// the order.
-    pub fn add_groups(&mut self, group: impl Iterator<Item = GroupRef>) {
-        self.map.extend(group.map(|g| {
-            let guard = g.read(false);
-            let id = guard.id().to_owned();
-            let importance = guard.meta().importance;
-            drop(guard);
-            (id, (importance, g))
-        }));
-        self.sort_self();
+    /// Insert many groups into this list
+    pub fn add_groups(&mut self, groups: impl Iterator<Item = GroupRef>) {
+        for g in groups {
+            let read = g.read(false);
+            let meta = read.meta();
+            let id = meta.id.clone();
+            let imp = meta.importance;
+            drop(read);
+            
+            let group_id = self.groups.insert(g);
+            self.name_index.insert(id.clone(), group_id);
+            self.importance_index.insert((imp, id), group_id);
+        }
     }
 
     pub fn remove_group(&mut self, group: impl AsRef<str>) -> Option<GroupRef> {
-        self.map.shift_remove(group.as_ref()).map(|x| x.1)
+        // self.groups.shift_remove(group.as_ref()).map(|x| x.1)
+        todo!()
     }
 
     pub fn remove_groups(&mut self, groups: impl Iterator<Item = impl AsRef<str>>) {
-        for group in groups {
-            self.map.swap_remove(group.as_ref());
-        }
-        self.sort_self();
+        todo!()
+        // for group in groups {
+        //     self.groups.swap_remove(group.as_ref());
+        // }
+        // self.sort_self();
     }
 
     pub fn get_group(&self, id: impl AsRef<str>) -> Option<&GroupRef> {
-        self.map.get(id.as_ref()).map(|v| &v.1)
+        // self.groups.get(id.as_ref()).map(|v| &v.1)
+        todo!()
     }
 
     pub fn len(&self) -> usize {
-        self.map.len()
+        self.groups.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -70,7 +76,10 @@ impl GroupList {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&str, &GroupRef)> {
-        self.map.iter().map(|(k, (_, v))| (k.as_str(), v))
+        self.importance_index
+            .iter()
+            .map(move |((_, s), key)| (s.as_str(), self.groups.get(*key).unwrap()))
+        // self.groups.iter().map(|(k, (_, v))| (k.as_str(), v))
     }
 }
 
