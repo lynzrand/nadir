@@ -1,5 +1,6 @@
 mod component;
 mod model;
+mod net;
 
 fn main() {
     let mut rt = tokio::runtime::Builder::new_current_thread()
