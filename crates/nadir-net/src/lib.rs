@@ -4,7 +4,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use async_trait::async_trait;
-use futures::{Sink, SinkExt, StreamExt, TryStream, TryStreamExt};
+use futures::{Sink, SinkExt, Stream, StreamExt, TryStream, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{tungstenite, MaybeTlsStream, WebSocketStream};
@@ -17,7 +17,7 @@ pub enum Endpoint {
     WindowsNamedPipe(PathBuf),
 }
 
-pub async fn listen_at<S, R>(endpoint: Endpoint) -> anyhow::Result<ConnPair<S, R>>
+pub async fn connect_to<S, R>(endpoint: Endpoint) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
     R: for<'de> Deserialize<'de>,
@@ -44,13 +44,30 @@ where
     R: for<'de> Deserialize<'de>,
 {
     let (conn, _) = tokio_tungstenite::connect_async(endpoint).await?;
-    let (send_half, recv_half) = conn.split();
 
+    from_ws_stream(conn)
+}
+
+async fn spawn_listen_ws<S, R>(
+    endpoint: &str,
+    cancel: tokio_util::sync::CancellationToken,
+) -> anyhow::Result<Box<dyn Stream<Item = ConnPair<S, R>>>> {
+    let listen_task = tokio::spawn(async move { todo!() });
+    todo!();
+}
+
+fn from_ws_stream<S, R>(
+    conn: WebSocketStream<MaybeTlsStream<TcpStream>>,
+) -> anyhow::Result<ConnPair<S, R>>
+where
+    S: Serialize + Send + 'static,
+    R: for<'de> Deserialize<'de>,
+{
+    let (send_half, recv_half) = conn.split();
     let send_half = send_half.with(|el| async move {
         let msg = tungstenite::Message::Text(serde_json::to_string(&el)?);
         Ok::<_, anyhow::Error>(msg)
     });
-
     let recv_half = recv_half.err_into().try_filter_map(|el| async move {
         match el {
             tungstenite::Message::Text(s) => {
@@ -60,6 +77,5 @@ where
             _ => Ok(None),
         }
     });
-
     Ok((Box::new(send_half), Box::new(recv_half)))
 }
