@@ -4,96 +4,62 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use async_trait::async_trait;
-use futures::TryStreamExt;
+use futures::{Sink, SinkExt, StreamExt, TryStream, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{tungstenite, MaybeTlsStream, WebSocketStream};
 
 pub enum Endpoint {
     Websocket(String),
     #[cfg(unix)]
-    DomainSocket(PathBuf),
+    UnixDomainSocket(PathBuf),
     #[cfg(windows)]
-    NamedPipe(PathBuf),
+    WindowsNamedPipe(PathBuf),
 }
 
-pub async fn listen_at<'de, S, R>(endpoint: Endpoint) -> anyhow::Result<Box<dyn Connection<S, R>>>
+pub async fn listen_at<S, R>(endpoint: Endpoint) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: Deserialize<'de>,
+    R: for<'de> Deserialize<'de>,
 {
     match endpoint {
-        Endpoint::Websocket(s) => connect_ws(s).await,
+        Endpoint::Websocket(s) => connect_ws(&s).await,
         #[cfg(unix)]
-        Endpoint::DomainSocket(_) => todo!(),
+        Endpoint::UnixDomainSocket(_) => todo!(),
         #[cfg(windows)]
-        Endpoint::NamedPipe(_) => todo!(),
+        Endpoint::WindowsNamedPipe(_) => todo!(),
     }
 }
 
-async fn connect_ws<'de, S, R>(endpoint: String) -> anyhow::Result<Box<dyn Connection<S, R>>>
+type ConnSink<S> = Box<dyn Sink<S, Error = anyhow::Error>>;
+
+type ConnStream<R> =
+    Box<dyn TryStream<Ok = R, Error = anyhow::Error, Item = Result<R, anyhow::Error>>>;
+
+type ConnPair<S, R> = (ConnSink<S>, ConnStream<R>);
+
+async fn connect_ws<S, R>(endpoint: &str) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: Deserialize<'de>,
+    R: for<'de> Deserialize<'de>,
 {
-    let (stream, _) = tokio_tungstenite::connect_async(endpoint).await?;
-    let conn = WebSocketConnection { stream };
-    Ok(Box::new(conn))
-}
+    let (conn, _) = tokio_tungstenite::connect_async(endpoint).await?;
+    let (send_half, recv_half) = conn.split();
 
-#[async_trait]
-pub trait Connection<S, R> {
-    /// Try to receive a message from this connection.
-    ///
-    /// The implementor should:
-    ///
-    /// - Return `Ok(Some(_))` when a new message is available,
-    /// - Return `Ok(None)` when the underlying connection is already closed,
-    /// - Return `Err(_)` when the underlying connection encounters a problem and should be closed.
-    async fn recv(&mut self) -> anyhow::Result<Option<R>>;
+    let send_half = send_half.with(|el| async move {
+        let msg = tungstenite::Message::Text(serde_json::to_string(&el)?);
+        Ok::<_, anyhow::Error>(msg)
+    });
 
-    /// Try to send a message into this connection.
-    ///
-    /// The implementor should:
-    ///
-    /// - Return `Ok(())` when the message is sent successfully,
-    /// - Return `Err(_)` when the message cannot be sent.
-    async fn send(&mut self, msg: S) -> anyhow::Result<()>;
+    let recv_half = recv_half.err_into().try_filter_map(|el| async move {
+        match el {
+            tungstenite::Message::Text(s) => {
+                let deserialize_result = serde_json::from_str(&s)?;
+                Ok(Some(deserialize_result))
+            }
+            _ => Ok(None),
+        }
+    });
 
-    /// Close this connection, releasing resources.
-    async fn close(&mut self);
-}
-
-pub struct WebSocketConnection {
-    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-}
-
-impl WebSocketConnection {
-    async fn recv_<S>(&mut self) -> anyhow::Result<Option<S>> {
-        let next = match self.stream.try_next().await? {
-            Some(v) => v,
-            None => return Ok(None),
-        };
-
-        todo!()
-    }
-}
-
-#[async_trait]
-impl<'de, S, R> Connection<S, R> for WebSocketConnection
-where
-    S: Serialize + Send + 'static,
-    R: Deserialize<'de>,
-{
-    async fn recv(&mut self) -> anyhow::Result<Option<R>> {
-        self.recv_().await
-    }
-
-    async fn send(&mut self, msg: S) -> anyhow::Result<()> {
-        todo!()
-    }
-
-    async fn close(&mut self) {
-        self.stream.close(None).await;
-    }
+    Ok((Box::new(send_half), Box::new(recv_half)))
 }
