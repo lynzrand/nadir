@@ -9,10 +9,20 @@ edition = "2021"
 anyhow = "1"
 async-trait = "0.1.51"
 futures = "0.3"
-tokio = "1"
-tokio-tungstenite = "0.15.0"
-tokio-util = "0.6.9"
-tokio-stream = "0.1.8"
-toml = "0.5.8"
+log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+snow = { version = "0.8.0", optional = true }
+tokio = { version = "1", features = ["rt"] }
+tokio-tungstenite = { version = "0.15.0", optional = true }
+tokio-util = "0.6.9"
+tokio-stream = "0.1.8"
+
+[features]
+websocket-secure = ["websocket", "tokio-tungstenite/rustls-tls"]
+websocket = ["tokio-tungstenite"]
+noise-over-tcp = ["snow"]
+windows-named-pipe = []
+unix-domain-socket = []
+
+default = ["websocket", "windows-named-pipe", "unix-domain-socket"]
