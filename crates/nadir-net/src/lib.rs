@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use futures::{Sink, SinkExt, Stream, StreamExt, TryStream, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{tungstenite, MaybeTlsStream, WebSocketStream};
 
 pub enum Endpoint {
@@ -20,7 +21,7 @@ pub enum Endpoint {
 pub async fn connect_to<S, R>(endpoint: Endpoint) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de>,
+    R: for<'de> Deserialize<'de> + 'static,
 {
     match endpoint {
         Endpoint::Websocket(s) => connect_ws(&s).await,
@@ -31,17 +32,17 @@ where
     }
 }
 
-type ConnSink<S> = Box<dyn Sink<S, Error = anyhow::Error>>;
+type ConnSink<S> = Box<dyn Sink<S, Error = anyhow::Error> + Send>;
 
 type ConnStream<R> =
-    Box<dyn TryStream<Ok = R, Error = anyhow::Error, Item = Result<R, anyhow::Error>>>;
+    Box<dyn TryStream<Ok = R, Error = anyhow::Error, Item = Result<R, anyhow::Error>> + Send>;
 
 type ConnPair<S, R> = (ConnSink<S>, ConnStream<R>);
 
 async fn connect_ws<S, R>(endpoint: &str) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de>,
+    R: for<'de> Deserialize<'de> + 'static,
 {
     let (conn, _) = tokio_tungstenite::connect_async(endpoint).await?;
 
@@ -51,9 +52,36 @@ where
 async fn spawn_listen_ws<S, R>(
     endpoint: &str,
     cancel: tokio_util::sync::CancellationToken,
-) -> anyhow::Result<Box<dyn Stream<Item = ConnPair<S, R>>>> {
-    let listen_task = tokio::spawn(async move { todo!() });
-    todo!();
+) -> anyhow::Result<Box<dyn Stream<Item = ConnPair<S, R>>>>
+where
+    S: Serialize + Send + 'static,
+    R: for<'de> Deserialize<'de> + 'static,
+{
+    let tcp = tokio::net::TcpListener::bind(endpoint).await?;
+    let (send, recv) = tokio::sync::mpsc::channel(64);
+    let _listen_task = tokio::spawn(async move {
+        while let Ok((stream, _addr)) = tcp.accept().await {
+            match accept_ws(stream).await {
+                Ok(conn) => {
+                    send.send(conn).await;
+                }
+                Err(e) => {
+                    // todo
+                }
+            };
+        }
+    });
+    Ok(Box::new(ReceiverStream::new(recv)))
+}
+
+async fn accept_ws<S, R>(stream: TcpStream) -> anyhow::Result<ConnPair<S, R>>
+where
+    S: Serialize + Send + 'static,
+    R: for<'de> Deserialize<'de>,
+{
+    let stream = tokio_tungstenite::accept_async(stream).await?;
+
+    Ok(todo!())
 }
 
 fn from_ws_stream<S, R>(
