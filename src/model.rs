@@ -19,6 +19,8 @@ pub struct HandshakeClientMessage {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ClientMessage {
+    /// Initiate a handshake from client
+    Handshake(HandshakeClientMessage),
     /// Create or replace a notify group.
     PutGroup(NotifyGroup),
     /// Create or replace a notify within a group.
@@ -32,6 +34,7 @@ pub enum ClientMessage {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ServerMessage {
+    /// Respond to a user action
     Reaction { group: String, key: String },
 }
 

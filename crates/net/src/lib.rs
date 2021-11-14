@@ -7,23 +7,33 @@ use futures::{Sink, Stream, TryStream};
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
-#[derive(Clone)]
+#[derive(Debug, Hash, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Endpoint {
     #[cfg(feature = "websocket")]
     Websocket(String),
-    #[cfg(unix)]
+    #[cfg(all(unix, feature = "unix-domain-socket"))]
     UnixDomainSocket(PathBuf),
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "windows-named-pipe"))]
     WindowsNamedPipe(PathBuf),
 }
 
-pub async fn connect_to<S, R>(endpoint: Endpoint) -> anyhow::Result<ConnPair<S, R>>
+#[derive(Debug, Hash, PartialEq, Clone, Serialize, Deserialize)]
+pub enum ListenEndpoint {
+    #[cfg(feature = "websocket")]
+    Websocket(String),
+    #[cfg(all(unix, feature = "unix-domain-socket"))]
+    UnixDomainSocket(PathBuf),
+    #[cfg(all(windows, feature = "windows-named-pipe"))]
+    WindowsNamedPipe(PathBuf),
+}
+
+pub async fn connect_to<S, R>(endpoint: &Endpoint) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de> + 'static,
+    R: for<'de> Deserialize<'de> + Send + 'static,
 {
     match endpoint {
-        Endpoint::Websocket(s) => websocket::connect_ws(&s).await,
+        Endpoint::Websocket(s) => websocket::connect_ws(s).await,
         #[cfg(unix)]
         Endpoint::UnixDomainSocket(_) => todo!(),
         #[cfg(windows)]
@@ -32,19 +42,19 @@ where
 }
 
 pub async fn listen_on<S, R>(
-    endpoint: Endpoint,
+    endpoint: &ListenEndpoint,
     cancel: CancellationToken,
 ) -> anyhow::Result<ConnectionListener<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de> + 'static,
+    R: for<'de> Deserialize<'de> + Send + 'static,
 {
     match endpoint {
-        Endpoint::Websocket(s) => websocket::spawn_listen_ws(&s, cancel).await,
+        ListenEndpoint::Websocket(s) => websocket::spawn_listen_ws(s, cancel).await,
         #[cfg(unix)]
-        Endpoint::UnixDomainSocket(_) => todo!(),
+        ListenEndpoint::UnixDomainSocket(_) => todo!(),
         #[cfg(windows)]
-        Endpoint::WindowsNamedPipe(_) => todo!(),
+        ListenEndpoint::WindowsNamedPipe(_) => todo!(),
     }
 }
 
@@ -69,4 +79,4 @@ pub type ConnPair<S, R> = (ConnSink<S>, ConnStream<R>);
 
 /// The result of listening on a specific connection port. Returns a stream of connections
 /// that advances every time this port accepts a connection.
-pub type ConnectionListener<S, R> = Box<dyn Stream<Item = ConnPair<S, R>>>;
+pub type ConnectionListener<S, R> = Box<dyn Stream<Item = ConnPair<S, R>> + Send + Sync>;

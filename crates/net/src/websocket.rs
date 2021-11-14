@@ -1,6 +1,6 @@
-use crate::ConnPair;
+use crate::{ConnPair, ConnectionListener};
 
-use futures::{SinkExt, Stream, StreamExt, TryStreamExt};
+use futures::{SinkExt, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
@@ -12,7 +12,7 @@ use tokio_tungstenite::{tungstenite, WebSocketStream};
 pub async fn connect_ws<S, R>(endpoint: &str) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de> + 'static,
+    R: for<'de> Deserialize<'de> + Send + 'static,
 {
     let (conn, _) = tokio_tungstenite::connect_async(endpoint).await?;
 
@@ -22,10 +22,10 @@ where
 pub async fn spawn_listen_ws<S, R>(
     endpoint: &str,
     _cancel: tokio_util::sync::CancellationToken,
-) -> anyhow::Result<Box<dyn Stream<Item = ConnPair<S, R>>>>
+) -> anyhow::Result<ConnectionListener<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de> + 'static,
+    R: for<'de> Deserialize<'de> + Send + 'static,
 {
     let tcp = tokio::net::TcpListener::bind(endpoint).await?;
     let (send, recv) = tokio::sync::mpsc::channel(64);
@@ -54,7 +54,7 @@ where
 async fn accept_ws<S, R>(stream: TcpStream) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de>,
+    R: for<'de> Deserialize<'de> + Send + 'static,
 {
     let stream = tokio_tungstenite::accept_async(stream).await?;
 
@@ -64,7 +64,7 @@ where
 fn from_ws_stream<S, R, TStream>(conn: WebSocketStream<TStream>) -> anyhow::Result<ConnPair<S, R>>
 where
     S: Serialize + Send + 'static,
-    R: for<'de> Deserialize<'de>,
+    R: for<'de> Deserialize<'de> + Send + 'static,
     TStream: AsyncRead + AsyncWrite + Unpin + Send + Sync + 'static,
 {
     let (send_half, recv_half) = conn.split();

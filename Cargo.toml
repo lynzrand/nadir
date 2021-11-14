@@ -11,11 +11,15 @@ async-trait = "0.1.51"
 crossterm = "0.22"
 fixed = "1"
 futures = "0.3"
-tokio = { version = "1", features = ["rt", "time"] }
+tokio = { version = "1", features = ["rt", "time", "macros"] }
+tokio-util = "0.6.9"
 tokio-tungstenite = "0.15.0"
 toml = "0.5.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+slotmap = "1"
+
+nadir-net = { path = "crates/net" }
 
 [workspace]
 members = [".", "crates/net"]
