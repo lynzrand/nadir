@@ -1,26 +1,24 @@
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::sync::{atomic::AtomicBool, Arc};
 
-use flume::{unbounded, Receiver, Sender};
-use futures::{
-    channel::mpsc::UnboundedSender,
-    future::{select, Either},
-};
-use model::{ClientMessage, ServerMessage};
-use msg::{ControlMessage, GroupMsg};
-use nadir_net::{ConnectionListener, Endpoint, ListenEndpoint};
+use flume::unbounded;
+
+use nadir_net::{Endpoint, ListenEndpoint};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use slotmap::{DefaultKey, SecondaryMap, SlotMap};
+
 use tokio_util::sync::CancellationToken;
 
-mod component;
 mod model;
 mod msg;
 mod net;
+mod render;
+
+static ALLOW_CTRL_C: AtomicBool = AtomicBool::new(true);
+static ABORT_TOKEN: Lazy<CancellationToken> = Lazy::new(CancellationToken::new);
 
 fn main() {
+    ctrlc::set_handler(ctrl_c_handler).expect("Failed to set Ctrl+C handler");
+
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .expect("Failed to build runtime");
@@ -32,37 +30,20 @@ fn main() {
     rt.block_on(main_task(cfg))
 }
 
+fn ctrl_c_handler() {
+    if ALLOW_CTRL_C.load(std::sync::atomic::Ordering::Relaxed) {
+        ABORT_TOKEN.cancel();
+    }
+}
+
 async fn main_task(cfg: Config) {
     let cfg = Arc::new(cfg);
 
     let (msg_tx, msg_rx) = unbounded();
 
-    let listen_task = tokio::spawn(listen_task(cfg, msg_tx));
-    let render_task = tokio::spawn(render_task(msg_rx));
+    let listen_task = tokio::spawn(net::listen_task(cfg, msg_tx));
+    let render_task = tokio::spawn(render::render_task(msg_rx));
     let _ = tokio::join!(listen_task, render_task);
-}
-
-async fn listen_task(cfg: Arc<Config>, msg: Sender<Box<GroupMsg>>) {
-    let cancellation_token = tokio_util::sync::CancellationToken::new();
-}
-
-async fn render_task(msg: Receiver<Box<GroupMsg>>) {
-    let mut rerender_tick = tokio::time::interval(Duration::from_secs(1));
-
-    loop {
-        let tick = rerender_tick.tick();
-        tokio::pin!(tick);
-        let next_msg = select(msg.recv_async(), tick).await;
-        match next_msg {
-            Either::Left((Ok(msg), _)) => {
-                todo!("update inner state")
-            }
-            Either::Left((Err(_), _)) => break,
-            Either::Right(_) => {
-                todo!("render")
-            }
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
