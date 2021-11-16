@@ -1,6 +1,9 @@
 use std::sync::{Arc, RwLock};
 
+use flume::{unbounded, Receiver, Sender};
+use futures::channel::mpsc::UnboundedSender;
 use model::{ClientMessage, ServerMessage};
+use msg::{ControlMessage, GroupMsg};
 use nadir_net::{ConnectionListener, Endpoint, ListenEndpoint};
 use serde::{Deserialize, Serialize};
 use slotmap::{DefaultKey, SecondaryMap, SlotMap};
@@ -8,6 +11,7 @@ use tokio_util::sync::CancellationToken;
 
 mod component;
 mod model;
+mod msg;
 mod net;
 
 fn main() {
@@ -16,7 +20,7 @@ fn main() {
         .expect("Failed to build runtime");
 
     let cfg =
-        serde_json::from_slice(&std::fs::read(".nadir-cfg.json").expect("Failed to read config"))
+        serde_yaml::from_slice(&std::fs::read(".nadir-cfg.yml").expect("Failed to read config"))
             .expect("Failed to parse config");
 
     rt.block_on(main_task(cfg))
@@ -24,48 +28,19 @@ fn main() {
 
 async fn main_task(cfg: Config) {
     let cfg = Arc::new(cfg);
-    let listen_task = tokio::spawn(listen_task(cfg));
-    let render_task = tokio::spawn(render_task());
+
+    let (msg_tx, msg_rx) = unbounded();
+
+    let listen_task = tokio::spawn(listen_task(cfg, msg_tx));
+    let render_task = tokio::spawn(render_task(msg_rx));
     let _ = tokio::join!(listen_task, render_task);
 }
 
-async fn listen_task(cfg: Arc<Config>) {
+async fn listen_task(cfg: Arc<Config>, msg: Sender<Box<GroupMsg>>) {
     let cancellation_token = tokio_util::sync::CancellationToken::new();
-    let mut listens = SlotMap::new();
-    let connections = Arc::new(RwLock::new(SecondaryMap::new()));
-    for listen_point in &cfg.listen_on {
-        listens.insert(listen_point.clone());
-    }
-    let listens = Arc::new(listens);
-    for key in listens.keys() {
-        tokio::spawn(manage_listen_task(
-            listens.clone(),
-            connections.clone(),
-            key,
-            cancellation_token.clone(),
-        ));
-    }
 }
 
-async fn manage_listen_task(
-    listens: Arc<SlotMap<DefaultKey, ListenEndpoint>>,
-    connections: Arc<
-        RwLock<SecondaryMap<DefaultKey, ConnectionListener<ClientMessage, ServerMessage>>>,
-    >,
-    key: DefaultKey,
-    cancel: CancellationToken,
-) {
-    let listen_endpoint = listens.get(key).unwrap();
-    let listen_fut = nadir_net::listen_on(listen_endpoint, cancel.clone())
-        .await
-        .expect("Failed to listen");
-    connections
-        .write()
-        .expect("Failed to obtain write lock")
-        .insert(key, listen_fut);
-}
-
-async fn render_task() {
+async fn render_task(msg: Receiver<Box<GroupMsg>>) {
     loop {
         tokio::time::interval(std::time::Duration::from_millis(500))
             .tick()
