@@ -1,7 +1,13 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use flume::{unbounded, Receiver, Sender};
-use futures::channel::mpsc::UnboundedSender;
+use futures::{
+    channel::mpsc::UnboundedSender,
+    future::{select, Either},
+};
 use model::{ClientMessage, ServerMessage};
 use msg::{ControlMessage, GroupMsg};
 use nadir_net::{ConnectionListener, Endpoint, ListenEndpoint};
@@ -41,10 +47,21 @@ async fn listen_task(cfg: Arc<Config>, msg: Sender<Box<GroupMsg>>) {
 }
 
 async fn render_task(msg: Receiver<Box<GroupMsg>>) {
+    let mut rerender_tick = tokio::time::interval(Duration::from_secs(1));
+
     loop {
-        tokio::time::interval(std::time::Duration::from_millis(500))
-            .tick()
-            .await;
+        let tick = rerender_tick.tick();
+        tokio::pin!(tick);
+        let next_msg = select(msg.recv_async(), tick).await;
+        match next_msg {
+            Either::Left((Ok(msg), _)) => {
+                todo!("update inner state")
+            }
+            Either::Left((Err(_), _)) => break,
+            Either::Right(_) => {
+                todo!("render")
+            }
+        }
     }
 }
 
