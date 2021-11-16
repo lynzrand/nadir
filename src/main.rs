@@ -1,76 +1,33 @@
-use std::sync::{Arc, RwLock};
+use messages::prelude::Context;
 
-use model::{ClientMessage, ServerMessage};
-use nadir_net::{ConnectionListener, Endpoint, ListenEndpoint};
+use nadir_net::{Endpoint, ListenEndpoint};
+use net::NetworkManager;
+use once_cell::sync::Lazy;
+use render::Renderer;
 use serde::{Deserialize, Serialize};
-use slotmap::{DefaultKey, SecondaryMap, SlotMap};
+
 use tokio_util::sync::CancellationToken;
 
-mod component;
 mod model;
 mod net;
+mod render;
 
-fn main() {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .expect("Failed to build runtime");
+static ABORT: Lazy<CancellationToken> = Lazy::new(CancellationToken::new);
 
-    let cfg =
-        serde_json::from_slice(&std::fs::read(".nadir-cfg.json").expect("Failed to read config"))
-            .expect("Failed to parse config");
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
+    let net_ctx = Context::new();
+    let render_ctx = Context::new();
+    let net_addr = net_ctx.address();
+    let render_addr = render_ctx.address();
 
-    rt.block_on(main_task(cfg))
-}
+    let net = NetworkManager::new(net_addr.clone(), render_addr);
+    let render = Renderer::new(net_addr);
 
-async fn main_task(cfg: Config) {
-    let cfg = Arc::new(cfg);
-    let listen_task = tokio::spawn(listen_task(cfg));
-    let render_task = tokio::spawn(render_task());
-    let _ = tokio::join!(listen_task, render_task);
-}
+    tokio::spawn(net_ctx.run(net));
+    tokio::spawn(render_ctx.run(render));
 
-async fn listen_task(cfg: Arc<Config>) {
-    let cancellation_token = tokio_util::sync::CancellationToken::new();
-    let mut listens = SlotMap::new();
-    let connections = Arc::new(RwLock::new(SecondaryMap::new()));
-    for listen_point in &cfg.listen_on {
-        listens.insert(listen_point.clone());
-    }
-    let listens = Arc::new(listens);
-    for key in listens.keys() {
-        tokio::spawn(manage_listen_task(
-            listens.clone(),
-            connections.clone(),
-            key,
-            cancellation_token.clone(),
-        ));
-    }
-}
-
-async fn manage_listen_task(
-    listens: Arc<SlotMap<DefaultKey, ListenEndpoint>>,
-    connections: Arc<
-        RwLock<SecondaryMap<DefaultKey, ConnectionListener<ClientMessage, ServerMessage>>>,
-    >,
-    key: DefaultKey,
-    cancel: CancellationToken,
-) {
-    let listen_endpoint = listens.get(key).unwrap();
-    let listen_fut = nadir_net::listen_on(listen_endpoint, cancel.clone())
-        .await
-        .expect("Failed to listen");
-    connections
-        .write()
-        .expect("Failed to obtain write lock")
-        .insert(key, listen_fut);
-}
-
-async fn render_task() {
-    loop {
-        tokio::time::interval(std::time::Duration::from_millis(500))
-            .tick()
-            .await;
-    }
+    ABORT.cancelled().await;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
