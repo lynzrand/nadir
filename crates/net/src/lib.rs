@@ -1,7 +1,7 @@
 //! Network interface and protocols
 pub mod websocket;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, pin::Pin};
 
 use futures::{Sink, Stream, TryStream};
 use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ where
 ///
 /// The user should not treat an error in this sink as the signal of the connection being closed.
 /// Instead, the user should rely on the corresponding [`ConnStream`].
-pub type ConnSink<S> = Box<dyn Sink<S, Error = anyhow::Error> + Send>;
+pub type ConnSink<S> = Pin<Box<dyn Sink<S, Error = anyhow::Error> + Send>>;
 
 /// The receiving half of a connection, implemented as a [`Stream`].
 ///
@@ -72,11 +72,11 @@ pub type ConnSink<S> = Box<dyn Sink<S, Error = anyhow::Error> + Send>;
 /// The implementor must handle non-fatal errors internally (including logging them). The
 /// `Err(_)` value should only be used for fatal errors.
 pub type ConnStream<R> =
-    Box<dyn TryStream<Ok = R, Error = anyhow::Error, Item = Result<R, anyhow::Error>> + Send>;
+    Pin<Box<dyn TryStream<Ok = R, Error = anyhow::Error, Item = Result<R, anyhow::Error>> + Send>>;
 
 /// A pair of sink and stream
 pub type ConnPair<S, R> = (ConnSink<S>, ConnStream<R>);
 
 /// The result of listening on a specific connection port. Returns a stream of connections
 /// that advances every time this port accepts a connection.
-pub type ConnectionListener<S, R> = Box<dyn Stream<Item = ConnPair<S, R>> + Send + Sync>;
+pub type ConnectionListener<S, R> = Pin<Box<dyn Stream<Item = ConnPair<S, R>> + Send + Sync>>;

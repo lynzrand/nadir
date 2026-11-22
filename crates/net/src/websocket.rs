@@ -48,7 +48,7 @@ where
             };
         }
     });
-    Ok(Box::new(ReceiverStream::new(recv)))
+    Ok(Box::pin(ReceiverStream::new(recv)))
 }
 
 async fn accept_ws<S, R>(stream: TcpStream) -> anyhow::Result<ConnPair<S, R>>
@@ -81,5 +81,5 @@ where
             _ => Ok(None),
         }
     });
-    Ok((Box::new(send_half), Box::new(recv_half)))
+    Ok((Box::pin(send_half), Box::pin(recv_half)))
 }
